@@ -713,8 +713,6 @@ fn roundtrip_single_type_string_sequence() {
     let mut out = Vec::new();
     builder.encode(&mut out);
 
-    println!("{:?}", out);
-
     let beads = BeadsSequence::new(out.as_slice(), &types);
     assert_eq!(beads.is_symmetrical(), false);
     assert_eq!(beads.len(), 3);
@@ -742,4 +740,64 @@ fn roundtrip_single_type_int_sequence() {
     for index in 0..100 {
         assert_eq!(symb.get(index).to_int(), index as i128)
     }
+}
+
+#[test]
+fn roundtrip_type_priority() {
+    let types = BeadTypeSet::new(&[BeadType::U8, BeadType::I8]);
+    let mut builder = BeadsSequenceBuilder::new(
+        &types
+    );
+    let values = vec![-1, 20, 203, 204];
+
+    for v in values.iter() {
+        builder.push_int(*v);
+    }
+
+    let mut buffer: Vec<u8> = vec![];
+    builder.encode(&mut buffer);
+
+    let beads = BeadsSequence::new(buffer.as_slice(), &types);
+    let out_values: Vec<i128> = beads.iter().map(|b|{b.to_int()}).collect();
+    assert_eq!(out_values, values);
+}
+
+#[test]
+fn roundtrip_type_priority_3_type() {
+    let types = BeadTypeSet::new(&[BeadType::U8, BeadType::I8, BeadType::None]);
+    let mut builder = BeadsSequenceBuilder::new(
+        &types
+    );
+    let values = vec![-1, 20, 203, 204];
+
+    for v in values.iter() {
+        builder.push_int(*v);
+    }
+
+    let mut buffer: Vec<u8> = vec![];
+    builder.encode(&mut buffer);
+
+    let beads = BeadsSequence::new(buffer.as_slice(), &types);
+    let out_values: Vec<i128> = beads.iter().map(|b|{b.to_int()}).collect();
+    assert_eq!(out_values, values);
+}
+
+#[test]
+fn roundtrip_type_priority_5_type() {
+    let types = BeadTypeSet::new(&[BeadType::U8, BeadType::I8, BeadType::None, BeadType::TrueFlag, BeadType::FalseFlag]);
+    let mut builder = BeadsSequenceBuilder::new(
+        &types
+    );
+    let values = vec![-1, 20, 203, 204];
+
+    for v in values.iter() {
+        builder.push_int(*v);
+    }
+
+    let mut buffer: Vec<u8> = vec![];
+    builder.encode(&mut buffer);
+
+    let beads = BeadsSequence::new(buffer.as_slice(), &types);
+    let out_values: Vec<i128> = beads.iter().map(|b|{b.to_int()}).collect();
+    assert_eq!(out_values, values);
 }

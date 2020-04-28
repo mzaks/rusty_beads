@@ -109,13 +109,18 @@ impl BeadsSequenceBuilder {
     pub fn push_uint(&mut self, value: u128) -> bool {
         let start = max(self.flag_pointer+1, self.data_pointer);
         self.grow_buffer_if_needed(start, 16);
+        let mut replace_flag = false;
         for t in BeadType::cases_for_uint() {
             let mut type_index = 255u8;
             if let Some(_type_index) = self.type_index.get(&t) {
                 type_index = *_type_index;
             }
             if type_index != 255 {
-                self.add_flag(type_index);
+                if replace_flag {
+                    self.replace_flag(type_index);
+                } else {
+                    self.add_flag(type_index);
+                }
                 let start = self.data_start();
                 let (added, len) = t.push_uint(value, self.buffer[start..].as_mut());
                 if added {
@@ -123,6 +128,8 @@ impl BeadsSequenceBuilder {
                     self.count += 1;
                     return true;
                 }
+            } else {
+                replace_flag = true;
             }
         }
         false
@@ -131,19 +138,26 @@ impl BeadsSequenceBuilder {
     pub fn push_int(&mut self, value: i128) -> bool {
         let start = max(self.flag_pointer+1, self.data_pointer);
         self.grow_buffer_if_needed(start, 16);
+        let mut replace_flag = false;
         for t in BeadType::cases_for_int() {
             let mut type_index = 255u8;
             if let Some(_type_index) = self.type_index.get(&t) {
                 type_index = *_type_index;
             }
             if type_index != 255 {
-                self.add_flag(type_index);
+                if replace_flag {
+                    self.replace_flag(type_index);
+                } else {
+                    self.add_flag(type_index);
+                }
                 let start = self.data_start();
                 let (added, len) = t.push_int(value, self.buffer[start..].as_mut());
                 if added {
                     self.data_pointer = start + len;
                     self.count += 1;
                     return true;
+                } else {
+                    replace_flag = true;
                 }
             }
         }
@@ -157,19 +171,26 @@ impl BeadsSequenceBuilder {
     pub fn push_double_with_accuracy(&mut self, value: f64, accuracy: f64) -> bool {
         let start = max(self.flag_pointer+1, self.data_pointer);
         self.grow_buffer_if_needed(start, 8);
+        let mut replace_flag = false;
         for t in BeadType::cases_for_double() {
             let mut type_index = 255u8;
             if let Some(_type_index) = self.type_index.get(&t) {
                 type_index = *_type_index;
             }
             if type_index != 255 {
-                self.add_flag(type_index);
+                if replace_flag {
+                    self.replace_flag(type_index);
+                } else {
+                    self.add_flag(type_index);
+                }
                 let start = self.data_start();
                 let (added, len) = t.push_double(value, accuracy, self.buffer[start..].as_mut());
                 if added {
                     self.data_pointer = start + len;
                     self.count += 1;
                     return true;
+                } else {
+                    replace_flag = true;
                 }
             }
         }
@@ -199,6 +220,13 @@ impl BeadsSequenceBuilder {
         let (position_in_byte, shift) = self.compute_flag_info();
         self.move_flag_pointer_if_necessary(position_in_byte);
         self.grow_buffer_if_needed(self.flag_pointer, 1);
+        self.buffer[self.flag_pointer] |= flag << (position_in_byte * shift) as u8;
+    }
+
+    fn replace_flag(&mut self, flag: u8) {
+        let (position_in_byte, shift) = self.compute_flag_info();
+        let filter_mask = if position_in_byte == 0 {0} else {255u8 >> (8 - position_in_byte * shift) as u8};
+        self.buffer[self.flag_pointer] &= filter_mask;
         self.buffer[self.flag_pointer] |= flag << (position_in_byte * shift) as u8;
     }
 
