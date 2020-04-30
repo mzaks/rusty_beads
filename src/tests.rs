@@ -801,3 +801,89 @@ fn roundtrip_type_priority_5_type() {
     let out_values: Vec<i128> = beads.iter().map(|b|{b.to_int()}).collect();
     assert_eq!(out_values, values);
 }
+
+#[test]
+fn roundtrip_type_priority_plus_unfit_value() {
+    let types = BeadTypeSet::new(&[BeadType::U8, BeadType::I8]);
+    let mut builder = BeadsSequenceBuilder::new(
+        &types
+    );
+    let values = vec![-1, 403, 20, 204];
+
+    for v in values.iter() {
+        builder.push_int(*v);
+    }
+
+    let mut buffer: Vec<u8> = vec![];
+    builder.encode(&mut buffer);
+
+    let beads = BeadsSequence::new(buffer.as_slice(), &types);
+    let out_values: Vec<i128> = beads.iter().map(|b|{b.to_int()}).collect();
+    assert_eq!(out_values, vec![-1, 20, 204]);
+}
+
+#[test]
+fn roundtrip_type_priority_plus_unfit_type() {
+    let types = BeadTypeSet::new(&[BeadType::U8, BeadType::I8]);
+    let mut builder = BeadsSequenceBuilder::new(
+        &types
+    );
+    let values = vec![-1, 403, 20, 204];
+
+    for v in values.iter() {
+        builder.push_none();
+        builder.push_int(*v);
+    }
+
+    let mut buffer: Vec<u8> = vec![];
+    builder.encode(&mut buffer);
+
+    let beads = BeadsSequence::new(buffer.as_slice(), &types);
+    let out_values: Vec<i128> = beads.iter().map(|b|{b.to_int()}).collect();
+    assert_eq!(out_values, vec![-1, 20, 204]);
+}
+
+#[test]
+fn roundtrip_type_priority_5_types_plus_unfit_value() {
+    let types = BeadTypeSet::new(&[BeadType::U8, BeadType::I8, BeadType::I16, BeadType::U16, BeadType::F16]);
+    let mut builder = BeadsSequenceBuilder::new(
+        &types
+    );
+    let values = vec![-1, 403, 20, 204];
+
+    for v in values.iter() {
+        builder.push_double(0.1);
+        builder.push_int(*v);
+    }
+
+    let mut buffer: Vec<u8> = vec![];
+    builder.encode(&mut buffer);
+
+    let beads = BeadsSequence::new(buffer.as_slice(), &types);
+    let out_values: Vec<i128> = beads.iter().map(|b|{b.to_int()}).collect();
+    assert_eq!(out_values, values);
+}
+
+#[test]
+fn roundtrip_push_double_with_accuracy() {
+    let types = BeadTypeSet::new(&[BeadType::F16, BeadType::F32, BeadType::F64]);
+    let mut builder = BeadsSequenceBuilder::new(
+        &types
+    );
+    builder.push_double(0.1);
+    builder.push_double_with_accuracy(0.1, std::f32::EPSILON as f64);
+    builder.push_double_with_accuracy(0.1, 0.01);
+
+    let mut buffer: Vec<u8> = vec![];
+    builder.encode(&mut buffer);
+
+    assert_eq!(buffer, vec![
+        3, 6,
+        154, 153, 153, 153, 153, 153, 185, 63,
+        205, 204, 204, 61,
+        102, 46]);
+
+    let beads = BeadsSequence::new(buffer.as_slice(), &types);
+    let out_values: Vec<f64> = beads.iter().map(|b|{b.to_float()}).collect();
+    assert_eq!(out_values, vec![0.1, 0.10000000149011612, 0.0999755859375]);
+}
