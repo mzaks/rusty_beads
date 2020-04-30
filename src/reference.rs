@@ -162,3 +162,25 @@ impl TryFrom<BeadReference<'_>> for String {
         }
     }
 }
+
+impl TryFrom<BeadReference<'_>> for f32 {
+    type Error = ();
+    fn try_from(value: BeadReference) -> Result<Self, Self::Error> {
+        if value.is_float() || value.is_int() || value.is_uint() {
+            Ok(value.to_float() as f32)
+        } else {
+            Err(())
+        }
+    }
+}
+
+impl TryFrom<BeadReference<'_>> for f64 {
+    type Error = ();
+    fn try_from(value: BeadReference) -> Result<Self, Self::Error> {
+        if value.is_float() || value.is_int() || value.is_uint() {
+            Ok(value.to_float())
+        } else {
+            Err(())
+        }
+    }
+}
