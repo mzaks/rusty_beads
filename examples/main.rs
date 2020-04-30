@@ -4,8 +4,51 @@ use rusty_beads::sequence::BeadsSequence;
 use std::convert::TryFrom;
 
 fn main() {
+    bit_set();
+
     run_numbers();
     run_strings();
+}
+
+fn bit_set() {
+    let mut builder = BeadsSequenceBuilder::new(
+        &BeadTypeSet::new(&[BeadType::TrueFlag, BeadType::FalseFlag])
+    );
+
+    builder.push_bool(true);
+    builder.push_bool(true);
+    builder.push_bool(false);
+    builder.push_bool(false);
+    builder.push_bool(true);
+    builder.push_bool(true);
+    builder.push_bool(false);
+    builder.push_bool(true);
+
+    let mut buffer: Vec<u8> = vec![];
+    builder.encode(&mut buffer);
+    println!("{:?}", buffer);
+
+    let beads = BeadsSequence::new(
+        buffer.as_slice(),
+        &BeadTypeSet::new(&[BeadType::TrueFlag, BeadType::FalseFlag])
+    );
+    println!("Number of elements: {}", beads.len());
+
+    for bead in beads.iter() {
+        println!("{}", bead.to_bool())
+    }
+
+    let mut buffer: Vec<u8> = vec![];
+    builder.encode_with_types(&mut buffer);
+    println!("{:?}", buffer);
+
+    let beads = BeadsSequence::new_types_included(
+        buffer.as_slice()
+    );
+    println!("Number of elements: {}", beads.len());
+
+    let sym_beads = beads.symmetric().ok().unwrap();
+    println!("Value at index {} is {}", 3, sym_beads.get(3).to_bool());
 }
 
 fn run_numbers() {
