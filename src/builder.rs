@@ -7,6 +7,7 @@ use std::io;
 pub struct BeadsSequenceBuilder {
     buffer: Vec<u8>,
     count: usize,
+    flag_count: usize,
     flag_pointer: usize,
     data_pointer: usize,
     type_index: HashMap<BeadType, u8>,
@@ -29,6 +30,7 @@ impl BeadsSequenceBuilder {
         BeadsSequenceBuilder {
             buffer: vec![0; 1000],
             count: 0,
+            flag_count: 0,
             flag_pointer: 0,
             data_pointer: 0,
             type_index
@@ -109,27 +111,23 @@ impl BeadsSequenceBuilder {
     pub fn push_uint(&mut self, value: u128) -> bool {
         let start = max(self.flag_pointer+1, self.data_pointer);
         self.grow_buffer_if_needed(start, 16);
-        let mut replace_flag = false;
         for t in BeadType::cases_for_uint() {
             let mut type_index = 255u8;
             if let Some(_type_index) = self.type_index.get(&t) {
                 type_index = *_type_index;
             }
             if type_index != 255 {
-                if replace_flag {
-                    self.replace_flag(type_index);
-                } else {
-                    self.add_flag(type_index);
-                }
+                self.add_flag(type_index);
                 let start = self.data_start();
                 let (added, len) = t.push_uint(value, self.buffer[start..].as_mut());
                 if added {
                     self.data_pointer = start + len;
                     self.count += 1;
+                    self.flag_count = self.count;
                     return true;
+                } else {
+                    self.reset_flag();
                 }
-            } else {
-                replace_flag = true;
             }
         }
         false
@@ -138,18 +136,13 @@ impl BeadsSequenceBuilder {
     pub fn push_int(&mut self, value: i128) -> bool {
         let start = max(self.flag_pointer+1, self.data_pointer);
         self.grow_buffer_if_needed(start, 16);
-        let mut replace_flag = false;
         for t in BeadType::cases_for_int() {
             let mut type_index = 255u8;
             if let Some(_type_index) = self.type_index.get(&t) {
                 type_index = *_type_index;
             }
             if type_index != 255 {
-                if replace_flag {
-                    self.replace_flag(type_index);
-                } else {
-                    self.add_flag(type_index);
-                }
+                self.add_flag(type_index);
                 let start = self.data_start();
                 let (added, len) = t.push_int(value, self.buffer[start..].as_mut());
                 if added {
@@ -157,7 +150,7 @@ impl BeadsSequenceBuilder {
                     self.count += 1;
                     return true;
                 } else {
-                    replace_flag = true;
+                    self.reset_flag();
                 }
             }
         }
@@ -171,26 +164,22 @@ impl BeadsSequenceBuilder {
     pub fn push_double_with_accuracy(&mut self, value: f64, accuracy: f64) -> bool {
         let start = max(self.flag_pointer+1, self.data_pointer);
         self.grow_buffer_if_needed(start, 8);
-        let mut replace_flag = false;
         for t in BeadType::cases_for_double() {
             let mut type_index = 255u8;
             if let Some(_type_index) = self.type_index.get(&t) {
                 type_index = *_type_index;
             }
             if type_index != 255 {
-                if replace_flag {
-                    self.replace_flag(type_index);
-                } else {
-                    self.add_flag(type_index);
-                }
+                self.add_flag(type_index);
                 let start = self.data_start();
                 let (added, len) = t.push_double(value, accuracy, self.buffer[start..].as_mut());
                 if added {
                     self.data_pointer = start + len;
                     self.count += 1;
+                    self.flag_count = self.count;
                     return true;
                 } else {
-                    replace_flag = true;
+                    self.reset_flag();
                 }
             }
         }
@@ -221,13 +210,13 @@ impl BeadsSequenceBuilder {
         self.move_flag_pointer_if_necessary(position_in_byte);
         self.grow_buffer_if_needed(self.flag_pointer, 1);
         self.buffer[self.flag_pointer] |= flag << (position_in_byte * shift) as u8;
+        self.flag_count = self.count + 1;
     }
 
-    fn replace_flag(&mut self, flag: u8) {
+    fn reset_flag(&mut self) {
         let (position_in_byte, shift) = self.compute_flag_info();
-        let filter_mask = if position_in_byte == 0 {0} else {255u8 >> (8 - position_in_byte * shift) as u8};
-        self.buffer[self.flag_pointer] &= filter_mask;
-        self.buffer[self.flag_pointer] |= flag << (position_in_byte * shift) as u8;
+        let reset_mask = if position_in_byte == 0 {0} else {255u8 >> (8 - position_in_byte * shift) as u8};
+        self.buffer[self.flag_pointer] &= reset_mask;
     }
 
     fn compute_flag_info(&self) -> (usize, usize) {
@@ -242,7 +231,7 @@ impl BeadsSequenceBuilder {
     }
 
     fn move_flag_pointer_if_necessary(&mut self, position_in_byte: usize) {
-        if self.count > 0 && position_in_byte == 0 {
+        if self.flag_count > 0 && self.flag_count == self.count && position_in_byte == 0 {
             self.flag_pointer = max(self.flag_pointer + 1, self.data_pointer);
         }
     }
