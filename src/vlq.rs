@@ -41,6 +41,36 @@ pub(crate) fn read_vlq(buffer: &[u8]) -> (usize, u128) {
     ((index + 1) as usize, result)
 }
 
+pub(crate) trait VlqByteSize {
+    fn vlq_byte_size(&self) -> usize;
+}
+
+impl VlqByteSize for usize {
+    fn vlq_byte_size(&self) -> usize {
+        if self >> 7 == 0usize {
+            1
+        } else if self >> 14 == 0usize {
+            2
+        } else if self >> 21 == 0usize {
+            3
+        } else if self >> 28 == 0usize {
+            4
+        } else if self >> 35 == 0usize {
+            5
+        } else if self >> 42 == 0usize {
+            6
+        } else if self >> 49 == 0usize {
+            7
+        } else if self >> 56 == 0usize {
+            8
+        } else if self >> 63 == 0usize {
+            9
+        } else {
+            10
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::vlq::{add_as_vlq, zigzag_encode, read_vlq, zigzag_decode};

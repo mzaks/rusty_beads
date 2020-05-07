@@ -9,7 +9,7 @@ pub struct BeadReference<'a> {
     pub(crate) bead_type: BeadType
 }
 
-impl BeadReference<'_> {
+impl<'a> BeadReference<'a> {
     pub fn is_none(&self) -> bool {
         self.bead_type == BeadType::None
     }
@@ -56,14 +56,14 @@ impl BeadReference<'_> {
             panic!("Not a bool value")
         }
     }
-    pub fn to_str(&self) -> &str {
+    pub fn to_str(&self) -> &'a str {
         if self.is_string() {
             std::str::from_utf8(self.buffer).expect("value is not string")
         } else {
             panic!("value is not string")
         }
     }
-    pub fn to_bytes(&self) -> &[u8] {
+    pub fn to_bytes(&self) -> &'a[u8] {
         self.buffer
     }
     pub fn to_uint(&self) -> u128 {

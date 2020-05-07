@@ -1,6 +1,8 @@
 use crate::bead_type::{BeadType, BeadTypeSet};
-use crate::builder::BeadsSequenceBuilder;
-use crate::sequence::BeadsSequence;
+use crate::builder::{BeadsSequenceBuilder, IndexedBeadsBuilder, FixedSizeBeadsBuilder, FixedSizeBeadsIncrementalUintBuilder};
+use crate::sequence::{BeadsSequence, IndexedBeads, FixedSizeBeads, DedupBeads};
+use crate::converters::beads_to_dedup_beads;
+use std::f64;
 
 #[test]
 fn bead_type_set() {
@@ -394,6 +396,8 @@ fn roundtrip_strings() {
     for (index, b) in beads.iter().enumerate() {
         assert_eq!(b.to_str(), strings[index])
     }
+    let values: Vec<&str> = beads.iter().map(|b| b.to_str()).collect();
+    assert_eq!(strings, values);
 }
 
 #[test]
@@ -886,4 +890,151 @@ fn roundtrip_push_double_with_accuracy() {
     let beads = BeadsSequence::new(buffer.as_slice(), &types);
     let out_values: Vec<f64> = beads.iter().map(|b|{b.to_float()}).collect();
     assert_eq!(out_values, vec![0.1, 0.10000000149011612, 0.0999755859375]);
+}
+
+#[test]
+fn indexed_beads_builder() {
+    let mut builder = IndexedBeadsBuilder::new();
+    builder.push(&[1, 2, 3, 4]);
+
+    let mut buffer: Vec<u8> = vec![];
+    builder.encode(&mut buffer);
+
+    assert_eq!(buffer, &[8, 4, 1, 2, 3, 4]);
+
+    builder.push(&[1, 7, 8, 5, 3, 4, 6, 7, 8, 5, 20]);
+
+    buffer.clear();
+    builder.encode(&mut buffer);
+
+    assert_eq!(buffer, &[
+        16,
+        4, 15,
+        1, 2, 3, 4,
+        1, 7, 8, 5, 3, 4, 6, 7, 8, 5, 20
+    ]);
+}
+
+#[test]
+fn roundtrip_indexed_beads_builder() {
+    let mut builder = IndexedBeadsBuilder::new();
+    builder.push(&[1, 2, 3, 4]);
+
+    builder.push(&[1, 7, 8, 5, 3, 4, 6, 7, 8, 5, 20]);
+
+    let mut buffer: Vec<u8> = vec![];
+    builder.encode(&mut buffer);
+
+    let ib = IndexedBeads::new(buffer.as_slice());
+
+    assert_eq!(ib.len(), 2);
+    assert_eq!(ib[0].to_vec(), vec![1, 2, 3, 4]);
+    assert_eq!(ib[1].to_vec(), vec![1, 7, 8, 5, 3, 4, 6, 7, 8, 5, 20]);
+}
+
+#[test]
+fn roundtrip_large_indexed_beads_builder() {
+    let mut builder = IndexedBeadsBuilder::new();
+    let number_of_beads = 100_000;
+    for _ in 0..number_of_beads {
+        builder.push(&[1, 2, 3, 4]);
+    }
+
+    let mut buffer: Vec<u8> = vec![];
+    builder.encode(&mut buffer);
+
+    let ib = IndexedBeads::new(buffer.as_slice());
+
+    assert_eq!(ib.len(), number_of_beads);
+    assert_eq!(ib[number_of_beads / 2].to_vec(), vec![1, 2, 3, 4]);
+}
+
+#[test]
+fn roundtrip_fixed_size_beads() {
+    let mut builder = FixedSizeBeadsBuilder::new(3);
+    builder.push(&[1, 2, 3]);
+    builder.push(&[10, 20, 30]);
+    builder.push(&[30, 50, 90]);
+    builder.push(&[130, 150, 190]);
+
+    let mut buffer: Vec<u8> = vec![];
+    builder.encode(&mut buffer);
+
+    assert_eq!(buffer, vec![3, 1, 2, 3, 10, 20, 30, 30, 50, 90, 130, 150, 190]);
+
+    let fs_beads = FixedSizeBeads::new(&buffer);
+    assert_eq!(fs_beads.len(), 4);
+
+    assert_eq!(fs_beads[0].to_vec(), vec![1, 2, 3]);
+    assert_eq!(fs_beads[1].to_vec(), vec![10, 20, 30]);
+    assert_eq!(fs_beads[2].to_vec(), vec![30, 50, 90]);
+    assert_eq!(fs_beads[3].to_vec(), vec![130, 150, 190]);
+}
+
+#[test]
+fn roundtrip_fixed_size_beads_with_incremental_uint_builder() {
+    let mut builder = FixedSizeBeadsIncrementalUintBuilder::new();
+    builder.push(1);
+    builder.push(2);
+    builder.push(20);
+    builder.push(205);
+
+    let mut buffer: Vec<u8> = vec![];
+    builder.encode(&mut buffer);
+
+    assert_eq!(buffer, vec![1, 1, 2, 20, 205]);
+
+    let fs_beads = FixedSizeBeads::new(&buffer);
+    assert_eq!(fs_beads.len(), 4);
+
+    assert_eq!(fs_beads[0].to_vec(), vec![1]);
+    assert_eq!(fs_beads[1].to_vec(), vec![2]);
+    assert_eq!(fs_beads[2].to_vec(), vec![20]);
+    assert_eq!(fs_beads[3].to_vec(), vec![205]);
+
+
+    builder.push(340);
+
+    let mut buffer: Vec<u8> = vec![];
+    builder.encode(&mut buffer);
+
+    assert_eq!(buffer, vec![2, 1, 0, 2, 0, 20, 0, 205, 0, 84, 1]);
+
+    let fs_beads = FixedSizeBeads::new(&buffer);
+    assert_eq!(fs_beads.len(), 5);
+
+    assert_eq!(fs_beads[0].to_vec(), vec![1, 0]);
+    assert_eq!(fs_beads[1].to_vec(), vec![2, 0]);
+    assert_eq!(fs_beads[2].to_vec(), vec![20, 0]);
+    assert_eq!(fs_beads[3].to_vec(), vec![205, 0]);
+    assert_eq!(fs_beads[4].to_vec(), vec![84, 1]);
+}
+
+#[test]
+fn roundtrip_dedup_f64() {
+    let mut builder = BeadsSequenceBuilder::new(&BeadTypeSet::new(&[BeadType::F64]));
+    builder.push_double(0.1);
+    builder.push_double(0.1);
+    builder.push_double(0.3);
+    builder.push_double(0.2);
+    builder.push_double(0.3);
+
+    let mut buffer: Vec<u8> = vec![];
+    builder.encode(&mut buffer);
+
+    assert_eq!(buffer, vec![5, 154, 153, 153, 153, 153, 153, 185, 63, 154, 153, 153, 153, 153, 153, 185, 63, 51, 51, 51, 51, 51, 51, 211, 63, 154, 153, 153, 153, 153, 153, 201, 63, 51, 51, 51, 51, 51, 51, 211, 63]);
+
+    let mut dedup_buffer = vec![];
+
+    beads_to_dedup_beads(&buffer, &BeadTypeSet::new(&[BeadType::F64]), &mut dedup_buffer);
+
+    assert_eq!(dedup_buffer, vec![16, 6, 34, 1, 0, 0, 1, 2, 1, 24, 8, 16, 24, 154, 153, 153, 153, 153, 153, 185, 63, 51, 51, 51, 51, 51, 51, 211, 63, 154, 153, 153, 153, 153, 153, 201, 63]);
+
+    let dedup = DedupBeads::new(dedup_buffer.as_slice());
+    assert_eq!(dedup.len(), 5);
+    assert_eq!(dedup.get(0), <f64>::to_le_bytes(0.1).to_vec());
+    assert_eq!(dedup.get(1), <f64>::to_le_bytes(0.1).to_vec());
+    assert_eq!(dedup.get(2), <f64>::to_le_bytes(0.3).to_vec());
+    assert_eq!(dedup.get(3), <f64>::to_le_bytes(0.2).to_vec());
+    assert_eq!(dedup.get(4), <f64>::to_le_bytes(0.3).to_vec());
 }

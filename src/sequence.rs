@@ -3,6 +3,8 @@ use crate::bead_type::{BeadType, BeadTypeSet};
 use crate::vlq::read_vlq;
 use std::borrow::Borrow;
 use crate::reference::BeadReference;
+use std::ops::Index;
+use crate::converters::u128_from_slice;
 
 pub struct BeadsSequence<'a> {
     buffer: &'a[u8],
@@ -119,10 +121,149 @@ impl <'a> SymmetricBeadsSequence<'a> {
                 bead_type
             }
         }
-
     }
 
     pub fn len(&self) -> usize {
         self.count
+    }
+}
+
+pub struct IndexedBeads<'a> {
+    index_buffer: &'a[u8],
+    value_buffer: &'a[u8],
+    count: usize,
+    bytes_per_index_entry: usize
+}
+
+impl<'a> IndexedBeads<'a> {
+    pub fn new(buffer: &'a[u8])-> IndexedBeads<'a> {
+        let (header_size, header) = read_vlq(buffer);
+        let count = (header >> 3) as usize;
+        let bytes_per_index = ((header & 7) + 1) as usize;
+        IndexedBeads {
+            index_buffer: buffer[header_size..(header_size + count * bytes_per_index)].as_ref(),
+            value_buffer: buffer[(header_size + count * bytes_per_index)..].as_ref(),
+            count,
+            bytes_per_index_entry: bytes_per_index
+        }
+    }
+
+    pub fn len(&self) -> usize { self.count }
+
+    pub fn get(&'a self, index: usize) -> &'a[u8] {
+        if index >= self.count {
+            panic!("bad index")
+        }
+
+        fn position(b: &[u8], index: usize, bytes_per_index_entry: usize) -> usize {
+            let mut position = 0;
+            for i in 0..bytes_per_index_entry {
+                let part = b[index*bytes_per_index_entry + i] as usize;
+                position |= part << (i * 8)
+            }
+            position
+        }
+
+        let start = if index == 0 {
+            0
+        } else {
+            position(self.index_buffer, index - 1, self.bytes_per_index_entry)
+        };
+
+        let end  = position(self.index_buffer, index, self.bytes_per_index_entry);
+
+        &self.value_buffer[start..end]
+    }
+}
+
+impl Index<usize> for IndexedBeads<'_> {
+    type Output = [u8];
+
+    fn index(&self, index: usize) -> &Self::Output {
+        if index >= self.count {
+            panic!("bad index")
+        }
+
+        fn position(b: &[u8], index: usize, bytes_per_index_entry: usize) -> usize {
+            let mut position = 0;
+            for i in 0..bytes_per_index_entry {
+                let part = b[index*bytes_per_index_entry + i] as usize;
+                position |= part << (i * 8)
+            }
+            position
+        }
+
+        let start = if index == 0 {
+            0
+        } else {
+            position(self.index_buffer, index - 1, self.bytes_per_index_entry)
+        };
+
+        let end  = position(self.index_buffer, index, self.bytes_per_index_entry);
+
+        &self.value_buffer[start..end]
+    }
+}
+
+pub struct FixedSizeBeads<'a> {
+    size: usize,
+    buffer: &'a [u8]
+}
+
+impl <'a> FixedSizeBeads<'a> {
+    pub fn new(buffer: &'a[u8]) -> FixedSizeBeads {
+        let (header_size, header) = read_vlq(buffer);
+        FixedSizeBeads {
+            size: header as usize,
+            buffer: &buffer[header_size..]
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.buffer.len() / self.size
+    }
+
+    pub fn get(&self, index: usize) -> &'a[u8] {
+        let start = index * self.size;
+        let end = (index + 1) * self.size;
+
+        &self.buffer[start..end]
+    }
+}
+
+impl Index<usize> for FixedSizeBeads<'_> {
+    type Output = [u8];
+
+    fn index(&self, index: usize) -> &Self::Output {
+        let start = index * self.size;
+        let end = (index + 1) * self.size;
+
+        &self.buffer[start..end]
+    }
+}
+
+pub struct DedupBeads<'a> {
+    buffer: &'a[u8]
+}
+
+impl <'a> DedupBeads<'a> {
+    pub fn new(buffer: &'a[u8]) -> DedupBeads<'a> {
+        DedupBeads {
+            buffer
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        let root = IndexedBeads::new(self.buffer);
+        let index_beads = FixedSizeBeads::new(root.get(0));
+        index_beads.len()
+    }
+
+    pub fn get(&self, index: usize) -> Vec<u8> {
+        let root = IndexedBeads::new(self.buffer);
+        let index_beads = FixedSizeBeads::new(root.get(0));
+        let values = IndexedBeads::new(root.get(1));
+        let index = u128_from_slice(&index_beads.get(index)) as usize;
+        values.get(index).to_vec()
     }
 }
