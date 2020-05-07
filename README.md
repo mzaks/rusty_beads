@@ -16,12 +16,12 @@ The values can be of type:
 
 ## Building and encoding a Beads sequence
 
-In order to build a beads sequence we need to create an instance of BeadsSequenceBuilder:
+In order to build a beads sequence we need to create an instance of TypedBeadsBuilder:
 
 ```rust
-let mut builder = BeadsSequenceBuilder::new(
+let mut builder = TypedBeadsBuilder::new(
     &BeadTypeSet::new(&[BeadType::Utf8])
-);
+).ok().unwrap();
 ```
 
 `BeadTypeSet` is an indicator which type of elements we plan to add to the sequence. A Beads sequence may contain 1 to 16 types. 
@@ -29,7 +29,7 @@ So as a creator you need to pick, which of the above mentioned types you want/ne
 
 In the example above, we define that we want to build up a sequence of strings.
 
-`BeadsSequenceBuilder` struct has a number of `push_XXX`, which let us push values into Beads sequence:
+`TypedBeadsBuilder` struct has a number of `push_XXX`, which let us push values into Beads sequence:
 - push_none
 - push_bool
 - push_int
@@ -44,18 +44,18 @@ This is important, because we limit the types, which can be added to the given b
 
 So if we write:
 ```rust
-let mut builder = BeadsSequenceBuilder::new(
+let mut builder = TypedBeadsBuilder::new(
     &BeadTypeSet::new(&[BeadType::Utf8])
-);
+).ok().unwrap();
 let success = builder.push_string("Maxim");
 ```
 
 The value of `success` will be `true`.
 
 ```rust
-let mut builder = BeadsSequenceBuilder::new(
+let mut builder = TypedBeadsBuilder::new(
     &BeadTypeSet::new(&[BeadType::Utf8])
-);
+).ok().unwrap();
 let success = builder.push_int("45");
 ```
 
@@ -66,9 +66,9 @@ The value of `success` will be `false`, because `builder` is configured to store
 Beads sequence stores the type information for every element which is pushed to it. However if we configure the sequence to have only one type, then the type is implicit and it occupies 0 bits.
 If we configure the sequence to store 2 types, like for example:
 ```rust
-let mut builder = BeadsSequenceBuilder::new(
+let mut builder = TypedBeadsBuilder::new(
     &BeadTypeSet::new(&[BeadType::Utf8, BeadType::None])
-);
+).ok().unwrap();
 ```
 Then the type information for 8 elements is stored in 1 byte, meaning that the overhead of storing the type of the element is just one bit.
 If we configure the sequence to store 3 or 4 different type elements. The type information for 4 elements is stored in one byte.
@@ -81,9 +81,9 @@ But those tricks are more limited than what you can do with Beads.
 For example, in Beads we can store a sequence of boolean values as a bit set:
 
 ```rust
-let mut builder = BeadsSequenceBuilder::new(
+let mut builder = TypedBeadsBuilder::new(
     &BeadTypeSet::new(&[BeadType::TrueFlag, BeadType::FalseFlag])
-);
+).ok().unwrap();
 
 builder.push_bool(true);
 builder.push_bool(true);
@@ -119,25 +119,25 @@ println!("{:?}", buffer);
 We use `encode_with_types` instead of `encode`. The result is same as with `encode`, just prefixed with 4 bytes which represent the types: `[6, 0, 0, 0, 8, 76]`
 
 ## Decoding and reading the values
-In order to decode an encoded beads sequence, we need to create an instance of BeadsSequence:
+In order to decode and encoded beads sequence, we need to create an instance of TypedBeads:
 ```rust
-let beads = BeadsSequence::new(
+let beads = TypedBeads::new(
     buffer.as_slice(),
     &BeadTypeSet::new(&[BeadType::TrueFlag, BeadType::FalseFlag])
 );
 println!("Number of elements: {}", beads.len());
 ```
 The `new` function receives a slice of the buffer which was produced with `encode` method and the information about the types. 
-If we encoded the sequence with `encode_with_types`, we should instantiate the BeadsSequence as following:
+If we encoded the sequence with `encode_with_types`, we should instantiate the TypedBeads as following:
 ```rust
-let beads = BeadsSequence::new_types_included(
+let beads = TypedBeads::new_types_included(
     buffer.as_slice()
 );
 println!("Number of elements: {}", beads.len());
 ```
 The buffer includes the type information, so we should not provide it explicitly.
 
-The instantiation of `BeadsSequence` is very light weight. In fact it is just a wrapper for us to get the length of the sequence and an `Iterator`.
+The instantiation of `TypedBeads` is very light weight. In fact it is just a wrapper for us to get the length of the sequence and an `Iterator`.
 
 Reading the values can be performed through iteration:
 ```rust
@@ -178,11 +178,11 @@ The `to_float` method is the safest to use, as it works for `int`, `uint` and `f
 `BeadReference` can also be safely converted to `i8, i16, i32, i64, i128, u8, u16, u32, u64, u128, f32, f64, String` as we implement `TryFrom<BeadReference<'_>>` trait for all those types.
 
 ### Can we access values directly, without iterating over the whole sequence?
-In some cases we can. If the elements we store are symmetrical, than we can produce a `SymmetricBeadsSequence` from the `BeadsSequence`:
+In some cases we can. If the elements we store are symmetrical, than we can produce a `SymmetricTypedBeads` from the `TypedBeads`:
 ```rust
-let mut builder = BeadsSequenceBuilder::new(
+let mut builder = TypedBeadsBuilder::new(
     &BeadTypeSet::new(&[BeadType::TrueFlag, BeadType::FalseFlag])
-);
+).ok().unwrap();
 
 builder.push_bool(true);
 builder.push_bool(true);
@@ -197,7 +197,7 @@ let mut buffer: Vec<u8> = vec![];
 builder.encode_with_types(&mut buffer);
 println!("{:?}", buffer);
 
-let beads = BeadsSequence::new_types_included(
+let beads = TypedBeads::new_types_included(
     buffer.as_slice()
 );
 println!("Number of elements: {}", beads.len());
@@ -223,9 +223,9 @@ This is why we have a possibility to define accuracy when we store floating poin
 #[test]
 fn roundtrip_push_double_with_accuracy() {
     let types = BeadTypeSet::new(&[BeadType::F16, BeadType::F32, BeadType::F64]);
-    let mut builder = BeadsSequenceBuilder::new(
+    let mut builder = TypedBeadsBuilder::new(
         &types
-    );
+    ).ok().unwrap();
     builder.push_double(0.1);
     builder.push_double_with_accuracy(0.1, std::f32::EPSILON as f64);
     builder.push_double_with_accuracy(0.1, 0.01);
@@ -239,7 +239,7 @@ fn roundtrip_push_double_with_accuracy() {
         205, 204, 204, 61,
         102, 46]);
 
-    let beads = BeadsSequence::new(buffer.as_slice(), &types);
+    let beads = TypedBeads::new(buffer.as_slice(), &types);
     let out_values: Vec<f64> = beads.iter().map(|b|{b.to_float()}).collect();
     assert_eq!(out_values, vec![0.1, 0.10000000149011612, 0.0999755859375]);
 }

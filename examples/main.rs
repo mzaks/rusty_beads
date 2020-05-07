@@ -1,6 +1,6 @@
-use rusty_beads::builder::BeadsSequenceBuilder;
+use rusty_beads::builder::TypedBeadsBuilder;
 use rusty_beads::bead_type::{BeadTypeSet, BeadType};
-use rusty_beads::sequence::BeadsSequence;
+use rusty_beads::sequence::TypedBeads;
 use std::convert::TryFrom;
 
 fn main() {
@@ -11,9 +11,9 @@ fn main() {
 }
 
 fn bit_set() {
-    let mut builder = BeadsSequenceBuilder::new(
+    let mut builder = TypedBeadsBuilder::new(
         &BeadTypeSet::new(&[BeadType::TrueFlag, BeadType::FalseFlag])
-    );
+    ).ok().unwrap();
 
     builder.push_bool(true);
     builder.push_bool(true);
@@ -28,7 +28,7 @@ fn bit_set() {
     builder.encode(&mut buffer);
     println!("{:?}", buffer);
 
-    let beads = BeadsSequence::new(
+    let beads = TypedBeads::new(
         buffer.as_slice(),
         &BeadTypeSet::new(&[BeadType::TrueFlag, BeadType::FalseFlag])
     );
@@ -42,7 +42,7 @@ fn bit_set() {
     builder.encode_with_types(&mut buffer);
     println!("{:?}", buffer);
 
-    let beads = BeadsSequence::new_types_included(
+    let beads = TypedBeads::new_types_included(
         buffer.as_slice()
     );
     println!("Number of elements: {}", beads.len());
@@ -53,9 +53,9 @@ fn bit_set() {
 
 fn run_numbers() {
     let types = BeadTypeSet::new(&[BeadType::Vlq, BeadType::VlqZ, BeadType::U8, BeadType::I8]);
-    let mut builder = BeadsSequenceBuilder::new(
+    let mut builder = TypedBeadsBuilder::new(
         &types
-    );
+    ).ok().unwrap();
     let data = [145, -145, 4502345, -4502345, 0, 3945873459];
     for v in data.iter() {
         builder.push_int(*v);
@@ -65,7 +65,7 @@ fn run_numbers() {
     builder.encode(&mut out);
     println!("Data as beads: {:?}, len: {}", out, out.len());
 
-    let beads = BeadsSequence::new(out.as_slice(), &types);
+    let beads = TypedBeads::new(out.as_slice(), &types);
 
     println!("Beads count: {}", beads.len());
     for b in beads.iter() {
@@ -84,9 +84,9 @@ fn run_numbers() {
 
 fn run_strings() {
     let types = BeadTypeSet::new(&[BeadType::Utf8, BeadType::None]);
-    let mut builder = BeadsSequenceBuilder::new(
+    let mut builder = TypedBeadsBuilder::new(
         &types
-    );
+    ).ok().unwrap();
     let data: Vec<Option<&str>> = vec![Some("hello"), None, Some("this is something"), None, None, Some("special"), Some("")];
     for v in data.iter() {
         match v {
@@ -99,7 +99,7 @@ fn run_strings() {
     builder.encode(&mut out);
     println!("Data as beads: {:?}, len: {}", out, out.len());
 
-    let beads = BeadsSequence::new(out.as_slice(), &types);
+    let beads = TypedBeads::new(out.as_slice(), &types);
 
     println!("Beads count: {}", beads.len());
     for b in beads.iter() {

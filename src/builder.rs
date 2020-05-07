@@ -11,7 +11,7 @@ pub trait BeadsBuilder {
     fn len(&self) -> usize;
 }
 
-pub struct BeadsSequenceBuilder {
+pub struct TypedBeadsBuilder {
     buffer: Vec<u8>,
     count: usize,
     flag_count: usize,
@@ -20,10 +20,10 @@ pub struct BeadsSequenceBuilder {
     type_index: HashMap<BeadType, u8>,
 }
 
-impl BeadsSequenceBuilder {
-    pub fn new(types: &BeadTypeSet) -> BeadsSequenceBuilder {
+impl TypedBeadsBuilder {
+    pub fn new(types: &BeadTypeSet) -> Result<TypedBeadsBuilder, &'static str> {
         if types.size() < 1 || types.size() > 16 {
-            panic!("Beads sequence can carry only 1..=16 types");
+            return Err("Beads sequence can carry only 1..=16 types");
         }
         let mut type_index = HashMap::new();
         let mut index = 0u8;
@@ -34,14 +34,14 @@ impl BeadsSequenceBuilder {
             }
         }
 
-        BeadsSequenceBuilder {
+        Ok(TypedBeadsBuilder {
             buffer: vec![0; 1000],
             count: 0,
             flag_count: 0,
             flag_pointer: 0,
             data_pointer: 0,
             type_index
-        }
+        })
     }
 
     pub fn push_bool(&mut self, value: bool) -> bool {
@@ -251,7 +251,7 @@ impl BeadsSequenceBuilder {
     }
 }
 
-impl BeadsBuilder for BeadsSequenceBuilder {
+impl BeadsBuilder for TypedBeadsBuilder {
     fn encode(&self, mut writer: RefMut<dyn io::Write + '_>) {
         let mut tmp = [0; 10];
         let count_length = add_as_vlq(tmp.as_mut(), self.count as u128);

@@ -1,6 +1,6 @@
 use crate::bead_type::{BeadType, BeadTypeSet};
-use crate::builder::{BeadsSequenceBuilder, IndexedBeadsBuilder, FixedSizeBeadsBuilder, FixedSizeBeadsIncrementalUintBuilder};
-use crate::sequence::{BeadsSequence, IndexedBeads, FixedSizeBeads, DedupBeads};
+use crate::builder::{TypedBeadsBuilder, IndexedBeadsBuilder, FixedSizeBeadsBuilder, FixedSizeBeadsIncrementalUintBuilder};
+use crate::sequence::{TypedBeads, IndexedBeads, FixedSizeBeads, DedupBeads};
 use crate::converters::beads_to_dedup_beads;
 use std::f64;
 
@@ -16,9 +16,9 @@ fn bead_type_set() {
 
 #[test]
 fn push_bool_beads_sequence() {
-    let mut builder = BeadsSequenceBuilder::new(
+    let mut builder = TypedBeadsBuilder::new(
         &BeadTypeSet::new(&[BeadType::TrueFlag, BeadType::FalseFlag])
-    );
+    ).ok().unwrap();
     builder.push_bool(true);
     builder.push_bool(true);
     builder.push_bool(false);
@@ -43,9 +43,9 @@ fn push_bool_beads_sequence() {
 
 #[test]
 fn push_bool_beads_and_none_sequence() {
-    let mut builder = BeadsSequenceBuilder::new(
+    let mut builder = TypedBeadsBuilder::new(
         &BeadTypeSet::new(&[BeadType::TrueFlag, BeadType::FalseFlag, BeadType::None])
-    );
+    ).ok().unwrap();
     builder.push_bool(true);
     builder.push_bool(true);
     builder.push_none();
@@ -71,9 +71,9 @@ fn push_bool_beads_and_none_sequence() {
 
 #[test]
 fn push_u8_beads_sequence() {
-    let mut builder = BeadsSequenceBuilder::new(
+    let mut builder = TypedBeadsBuilder::new(
         &BeadTypeSet::new(&[BeadType::U8, BeadType::None])
-    );
+    ).ok().unwrap();
 
     builder.push_uint(20);
     builder.push_none();
@@ -91,9 +91,9 @@ fn push_u8_beads_sequence() {
 
 #[test]
 fn push_u16_beads_sequence() {
-    let mut builder = BeadsSequenceBuilder::new(
+    let mut builder = TypedBeadsBuilder::new(
         &BeadTypeSet::new(&[BeadType::U8, BeadType::U16])
-    );
+    ).ok().unwrap();
 
     builder.push_uint(20);
     builder.push_uint(261);
@@ -106,9 +106,9 @@ fn push_u16_beads_sequence() {
 
 #[test]
 fn push_u32_beads_sequence() {
-    let mut builder = BeadsSequenceBuilder::new(
+    let mut builder = TypedBeadsBuilder::new(
         &BeadTypeSet::new(&[BeadType::U8, BeadType::U32])
-    );
+    ).ok().unwrap();
 
     builder.push_uint(20);
     builder.push_uint(261000);
@@ -121,9 +121,9 @@ fn push_u32_beads_sequence() {
 
 #[test]
 fn push_vlq_beads_sequence() {
-    let mut builder = BeadsSequenceBuilder::new(
+    let mut builder = TypedBeadsBuilder::new(
         &BeadTypeSet::new(&[BeadType::Vlq, BeadType::U32])
-    );
+    ).ok().unwrap();
 
     builder.push_uint(20);
     builder.push_uint(261000);
@@ -135,9 +135,9 @@ fn push_vlq_beads_sequence() {
 }
 #[test]
 fn push_vlqz_beads_sequence() {
-    let mut builder = BeadsSequenceBuilder::new(
+    let mut builder = TypedBeadsBuilder::new(
         &BeadTypeSet::new(&[BeadType::VlqZ, BeadType::U32])
-    );
+    ).ok().unwrap();
 
     builder.push_uint(20);
     builder.push_uint(261000);
@@ -151,9 +151,9 @@ fn push_vlqz_beads_sequence() {
 
 #[test]
 fn push_f32_beads_sequence() {
-    let mut builder = BeadsSequenceBuilder::new(
+    let mut builder = TypedBeadsBuilder::new(
         &BeadTypeSet::new(&[BeadType::F32, BeadType::U128])
-    );
+    ).ok().unwrap();
 
     builder.push_uint(20);
     builder.push_uint(261000);
@@ -167,9 +167,9 @@ fn push_f32_beads_sequence() {
 
 #[test]
 fn push_f64_beads_sequence() {
-    let mut builder = BeadsSequenceBuilder::new(
+    let mut builder = TypedBeadsBuilder::new(
         &BeadTypeSet::new(&[BeadType::F64, BeadType::U128])
-    );
+    ).ok().unwrap();
 
     builder.push_uint(20);
     builder.push_uint(261000);
@@ -183,9 +183,9 @@ fn push_f64_beads_sequence() {
 
 #[test]
 fn push_f16_beads_sequence() {
-    let mut builder = BeadsSequenceBuilder::new(
+    let mut builder = TypedBeadsBuilder::new(
         &BeadTypeSet::new(&[BeadType::F16, BeadType::F32])
-    );
+    ).ok().unwrap();
 
     builder.push_uint(20);
     builder.push_uint(261000);
@@ -203,9 +203,9 @@ fn push_f16_beads_sequence() {
 
 #[test]
 fn push_i16_beads_sequence() {
-    let mut builder = BeadsSequenceBuilder::new(
+    let mut builder = TypedBeadsBuilder::new(
         &BeadTypeSet::new(&[BeadType::I8, BeadType::I16])
-    );
+    ).ok().unwrap();
 
     builder.push_uint(20);
     builder.push_int(-261);
@@ -219,9 +219,9 @@ fn push_i16_beads_sequence() {
 
 #[test]
 fn push_many_ints() {
-    let mut builder = BeadsSequenceBuilder::new(
+    let mut builder = TypedBeadsBuilder::new(
         &BeadTypeSet::new(&[BeadType::I8, BeadType::None])
-    );
+    ).ok().unwrap();
     for i in 1..14 {
         builder.push_int(i);
         if i == 7 {
@@ -236,9 +236,9 @@ fn push_many_ints() {
 
 #[test]
 fn push_many_ints_four_types() {
-    let mut builder = BeadsSequenceBuilder::new(
+    let mut builder = TypedBeadsBuilder::new(
         &BeadTypeSet::new(&[BeadType::I8, BeadType::None, BeadType::Vlq, BeadType::VlqZ])
-    );
+    ).ok().unwrap();
     for i in 1..14 {
         builder.push_int(i);
         if i == 7 {
@@ -257,9 +257,9 @@ fn push_many_ints_four_types() {
 
 #[test]
 fn push_many_ints_sixteen_types() {
-    let mut builder = BeadsSequenceBuilder::new(
+    let mut builder = TypedBeadsBuilder::new(
         &BeadTypeSet::new(&[BeadType::I8, BeadType::None, BeadType::Vlq, BeadType::VlqZ, BeadType::TrueFlag])
-    );
+    ).ok().unwrap();
     for i in 1..14 {
         builder.push_int(i);
         if i == 7 {
@@ -278,9 +278,9 @@ fn push_many_ints_sixteen_types() {
 
 #[test]
 fn push_string() {
-    let mut builder = BeadsSequenceBuilder::new(
+    let mut builder = TypedBeadsBuilder::new(
         &BeadTypeSet::new(&[BeadType::Utf8, BeadType::None])
-    );
+    ).ok().unwrap();
     builder.push_string("Maxim");
 
     let mut out = Vec::new();
@@ -305,9 +305,9 @@ fn push_string() {
 
 #[test]
 fn push_string_and_bytes() {
-    let mut builder = BeadsSequenceBuilder::new(
+    let mut builder = TypedBeadsBuilder::new(
         &BeadTypeSet::new(&[BeadType::Utf8, BeadType::Bytes])
-    );
+    ).ok().unwrap();
     builder.push_string("Maxim");
 
     let mut out = Vec::new();
@@ -327,9 +327,9 @@ fn push_string_and_bytes() {
 
 #[test]
 fn push_long_string() {
-    let mut builder = BeadsSequenceBuilder::new(
+    let mut builder = TypedBeadsBuilder::new(
         &BeadTypeSet::new(&[BeadType::Utf8, BeadType::None])
-    );
+    ).ok().unwrap();
     builder.push_string(r#"
 Lorem ipsum, or lipsum as it is sometimes known,
 is dummy text used in laying out print,
@@ -370,7 +370,7 @@ for use in a type specimen book."#);
 
 #[test]
 fn create_beads_sequence() {
-    let beads = BeadsSequence::new(
+    let beads = TypedBeads::new(
         &[12, 116, 11],
         &BeadTypeSet::new(&[BeadType::TrueFlag, BeadType::FalseFlag])
     );
@@ -384,7 +384,7 @@ fn create_beads_sequence() {
 #[test]
 fn roundtrip_strings() {
     let types = BeadTypeSet::new(&[BeadType::Utf8, BeadType::None]);
-    let mut builder = BeadsSequenceBuilder::new(&types);
+    let mut builder = TypedBeadsBuilder::new(&types).ok().unwrap();
     let strings = vec!["Hello", "my name is Maxim", "what about you? 🤨"];
     for s in strings.iter() {
         builder.push_string(s);
@@ -392,7 +392,7 @@ fn roundtrip_strings() {
     let mut out = Vec::new();
     builder.encode(&mut out);
 
-    let beads = BeadsSequence::new(out.as_slice(), &types);
+    let beads = TypedBeads::new(out.as_slice(), &types);
     for (index, b) in beads.iter().enumerate() {
         assert_eq!(b.to_str(), strings[index])
     }
@@ -403,7 +403,7 @@ fn roundtrip_strings() {
 #[test]
 fn roundtrip_strings_types_included() {
     let types = BeadTypeSet::new(&[BeadType::Utf8, BeadType::None]);
-    let mut builder = BeadsSequenceBuilder::new(&types);
+    let mut builder = TypedBeadsBuilder::new(&types).ok().unwrap();
     let strings = vec!["Hello", "my name is Maxim", "what about you? 🤨"];
     for s in strings.iter() {
         builder.push_string(s);
@@ -411,7 +411,7 @@ fn roundtrip_strings_types_included() {
     let mut out = Vec::new();
     builder.encode_with_types(&mut out);
 
-    let beads = BeadsSequence::new_types_included(out.as_slice());
+    let beads = TypedBeads::new_types_included(out.as_slice());
     for (index, b) in beads.iter().enumerate() {
         assert_eq!(b.to_str(), strings[index])
     }
@@ -420,7 +420,7 @@ fn roundtrip_strings_types_included() {
 #[test]
 fn roundtrip_strings_3_types() {
     let types = BeadTypeSet::new(&[BeadType::Utf8, BeadType::None, BeadType::Bytes]);
-    let mut builder = BeadsSequenceBuilder::new(&types);
+    let mut builder = TypedBeadsBuilder::new(&types).ok().unwrap();
     let strings = vec!["Hello", "my name is Maxim", "what about you? 🤨", "$$$", "2343"];
     for s in strings.iter() {
         builder.push_string(s);
@@ -428,7 +428,7 @@ fn roundtrip_strings_3_types() {
     let mut out = Vec::new();
     builder.encode(&mut out);
 
-    let beads = BeadsSequence::new(out.as_slice(), &types);
+    let beads = TypedBeads::new(out.as_slice(), &types);
     for (index, b) in beads.iter().enumerate() {
         assert_eq!(b.to_str(), strings[index])
     }
@@ -437,7 +437,7 @@ fn roundtrip_strings_3_types() {
 #[test]
 fn roundtrip_strings_5_types() {
     let types = BeadTypeSet::new(&[BeadType::Utf8, BeadType::None, BeadType::Bytes, BeadType::VlqZ, BeadType::Vlq]);
-    let mut builder = BeadsSequenceBuilder::new(&types);
+    let mut builder = TypedBeadsBuilder::new(&types).ok().unwrap();
     let strings = vec!["Hello", "my name is Maxim", "what about you? 🤨"];
     for s in strings.iter() {
         builder.push_string(s);
@@ -445,7 +445,7 @@ fn roundtrip_strings_5_types() {
     let mut out = Vec::new();
     builder.encode(&mut out);
 
-    let beads = BeadsSequence::new(out.as_slice(), &types);
+    let beads = TypedBeads::new(out.as_slice(), &types);
     for (index, b) in beads.iter().enumerate() {
         assert_eq!(b.to_str(), strings[index])
     }
@@ -454,7 +454,7 @@ fn roundtrip_strings_5_types() {
 #[test]
 fn roundtrip_strings_5_types_types_included() {
     let types = BeadTypeSet::new(&[BeadType::Utf8, BeadType::None, BeadType::Bytes, BeadType::VlqZ, BeadType::Vlq]);
-    let mut builder = BeadsSequenceBuilder::new(&types);
+    let mut builder = TypedBeadsBuilder::new(&types).ok().unwrap();
     let strings = vec!["Hello", "my name is Maxim", "what about you? 🤨"];
     for s in strings.iter() {
         builder.push_string(s);
@@ -462,7 +462,7 @@ fn roundtrip_strings_5_types_types_included() {
     let mut out = Vec::new();
     builder.encode_with_types(&mut out);
 
-    let beads = BeadsSequence::new_types_included(out.as_slice());
+    let beads = TypedBeads::new_types_included(out.as_slice());
     for (index, b) in beads.iter().enumerate() {
         assert_eq!(b.to_str(), strings[index])
     }
@@ -471,7 +471,7 @@ fn roundtrip_strings_5_types_types_included() {
 #[test]
 fn non_symmetric_sequence() {
     let types = BeadTypeSet::new(&[BeadType::Utf8, BeadType::None, BeadType::Bytes, BeadType::VlqZ, BeadType::Vlq]);
-    let mut builder = BeadsSequenceBuilder::new(&types);
+    let mut builder = TypedBeadsBuilder::new(&types).ok().unwrap();
     let strings = vec!["Hello", "my name is Maxim", "what about you? 🤨"];
     for s in strings.iter() {
         builder.push_string(s);
@@ -479,14 +479,14 @@ fn non_symmetric_sequence() {
     let mut out = Vec::new();
     builder.encode(&mut out);
 
-    let beads = BeadsSequence::new(out.as_slice(), &types);
+    let beads = TypedBeads::new(out.as_slice(), &types);
     assert_eq!(beads.is_symmetrical(), false);
 }
 
 #[test]
 fn symmetric_sequence_bool() {
     let types = BeadTypeSet::new(&[BeadType::TrueFlag, BeadType::FalseFlag]);
-    let mut builder = BeadsSequenceBuilder::new(&types);
+    let mut builder = TypedBeadsBuilder::new(&types).ok().unwrap();
     let bools = vec![true, true, false, true];
     for b in bools.iter() {
         builder.push_bool(*b);
@@ -494,7 +494,7 @@ fn symmetric_sequence_bool() {
     let mut out = Vec::new();
     builder.encode(&mut out);
 
-    let beads = BeadsSequence::new(out.as_slice(), &types);
+    let beads = TypedBeads::new(out.as_slice(), &types);
     assert_eq!(beads.is_symmetrical(), true);
 
     let symb = beads.symmetric().ok().unwrap();
@@ -508,7 +508,7 @@ fn symmetric_sequence_bool() {
 #[test]
 fn symmetric_sequence_bool_and_none() {
     let types = BeadTypeSet::new(&[BeadType::TrueFlag, BeadType::FalseFlag, BeadType::None]);
-    let mut builder = BeadsSequenceBuilder::new(&types);
+    let mut builder = TypedBeadsBuilder::new(&types).ok().unwrap();
     let bools = vec![true, true, false, true];
     for b in bools.iter() {
         builder.push_bool(*b);
@@ -517,7 +517,7 @@ fn symmetric_sequence_bool_and_none() {
     let mut out = Vec::new();
     builder.encode(&mut out);
 
-    let beads = BeadsSequence::new(out.as_slice(), &types);
+    let beads = TypedBeads::new(out.as_slice(), &types);
     assert_eq!(beads.is_symmetrical(), true);
     assert_eq!(beads.len(), 5);
 
@@ -533,7 +533,7 @@ fn symmetric_sequence_bool_and_none() {
 #[test]
 fn symmetric_sequence_one_byte_numbers() {
     let types = BeadTypeSet::new(&[BeadType::U8, BeadType::I8]);
-    let mut builder = BeadsSequenceBuilder::new(&types);
+    let mut builder = TypedBeadsBuilder::new(&types).ok().unwrap();
     let values = vec![1, -4, 6, 0, -9];
     for v in values.iter() {
         builder.push_int(*v);
@@ -541,7 +541,7 @@ fn symmetric_sequence_one_byte_numbers() {
     let mut out = Vec::new();
     builder.encode(&mut out);
 
-    let beads = BeadsSequence::new(out.as_slice(), &types);
+    let beads = TypedBeads::new(out.as_slice(), &types);
     assert_eq!(beads.is_symmetrical(), true);
     assert_eq!(beads.len(), 5);
 
@@ -557,7 +557,7 @@ fn symmetric_sequence_one_byte_numbers() {
 #[test]
 fn symmetric_sequence_two_byte_numbers_3_types() {
     let types = BeadTypeSet::new(&[BeadType::U16, BeadType::I16, BeadType::F16]);
-    let mut builder = BeadsSequenceBuilder::new(&types);
+    let mut builder = TypedBeadsBuilder::new(&types).ok().unwrap();
     let values = vec![1, -4, 6, 0, -9];
     for v in values.iter() {
         builder.push_int(*v);
@@ -565,7 +565,7 @@ fn symmetric_sequence_two_byte_numbers_3_types() {
     let mut out = Vec::new();
     builder.encode(&mut out);
 
-    let beads = BeadsSequence::new(out.as_slice(), &types);
+    let beads = TypedBeads::new(out.as_slice(), &types);
     assert_eq!(beads.is_symmetrical(), true);
     assert_eq!(beads.len(), 5);
 
@@ -581,7 +581,7 @@ fn symmetric_sequence_two_byte_numbers_3_types() {
 #[test]
 fn symmetric_sequence_four_byte_numbers_3_types() {
     let types = BeadTypeSet::new(&[BeadType::U32, BeadType::I32, BeadType::F32]);
-    let mut builder = BeadsSequenceBuilder::new(&types);
+    let mut builder = TypedBeadsBuilder::new(&types).ok().unwrap();
     let values = vec![1, -4, 6, 0, -9];
     for v in values.iter() {
         builder.push_int(*v);
@@ -589,7 +589,7 @@ fn symmetric_sequence_four_byte_numbers_3_types() {
     let mut out = Vec::new();
     builder.encode(&mut out);
 
-    let beads = BeadsSequence::new(out.as_slice(), &types);
+    let beads = TypedBeads::new(out.as_slice(), &types);
     assert_eq!(beads.is_symmetrical(), true);
     assert_eq!(beads.len(), 5);
 
@@ -605,7 +605,7 @@ fn symmetric_sequence_four_byte_numbers_3_types() {
 #[test]
 fn symmetric_sequence_eight_byte_numbers_3_types() {
     let types = BeadTypeSet::new(&[BeadType::U64, BeadType::I64, BeadType::F64]);
-    let mut builder = BeadsSequenceBuilder::new(&types);
+    let mut builder = TypedBeadsBuilder::new(&types).ok().unwrap();
     let values = vec![1, -4, 6, 0, -9];
     for v in values.iter() {
         builder.push_int(*v);
@@ -613,7 +613,7 @@ fn symmetric_sequence_eight_byte_numbers_3_types() {
     let mut out = Vec::new();
     builder.encode(&mut out);
 
-    let beads = BeadsSequence::new(out.as_slice(), &types);
+    let beads = TypedBeads::new(out.as_slice(), &types);
     assert_eq!(beads.is_symmetrical(), true);
     assert_eq!(beads.len(), 5);
 
@@ -629,7 +629,7 @@ fn symmetric_sequence_eight_byte_numbers_3_types() {
 #[test]
 fn symmetric_sequence_sixteen_byte_numbers() {
     let types = BeadTypeSet::new(&[BeadType::U128, BeadType::I128]);
-    let mut builder = BeadsSequenceBuilder::new(&types);
+    let mut builder = TypedBeadsBuilder::new(&types).ok().unwrap();
     let values = vec![1, -4, 6, 0, -9];
     for v in values.iter() {
         builder.push_int(*v);
@@ -637,7 +637,7 @@ fn symmetric_sequence_sixteen_byte_numbers() {
     let mut out = Vec::new();
     builder.encode(&mut out);
 
-    let beads = BeadsSequence::new(out.as_slice(), &types);
+    let beads = TypedBeads::new(out.as_slice(), &types);
     assert_eq!(beads.is_symmetrical(), true);
     assert_eq!(beads.len(), 5);
 
@@ -653,14 +653,14 @@ fn symmetric_sequence_sixteen_byte_numbers() {
 #[test]
 fn symmetric_sequence_four_byte_numbers_3_types_100_values() {
     let types = BeadTypeSet::new(&[BeadType::U32, BeadType::I32, BeadType::F32]);
-    let mut builder = BeadsSequenceBuilder::new(&types);
+    let mut builder = TypedBeadsBuilder::new(&types).ok().unwrap();
     for v in 0..100 {
         builder.push_int(v - 50);
     }
     let mut out = Vec::new();
     builder.encode(&mut out);
 
-    let beads = BeadsSequence::new(out.as_slice(), &types);
+    let beads = TypedBeads::new(out.as_slice(), &types);
     assert_eq!(beads.is_symmetrical(), true);
     assert_eq!(beads.len(), 100);
 
@@ -674,7 +674,7 @@ fn symmetric_sequence_four_byte_numbers_3_types_100_values() {
 #[test]
 fn non_symmetric_sequence_one_byte_numbers() {
     let types = BeadTypeSet::new(&[BeadType::U8, BeadType::I8, BeadType::I16]);
-    let mut builder = BeadsSequenceBuilder::new(&types);
+    let mut builder = TypedBeadsBuilder::new(&types).ok().unwrap();
     let values = vec![1, -4, 6, 0, -9];
     for v in values.iter() {
         builder.push_int(*v);
@@ -682,16 +682,16 @@ fn non_symmetric_sequence_one_byte_numbers() {
     let mut out = Vec::new();
     builder.encode(&mut out);
 
-    let beads = BeadsSequence::new(out.as_slice(), &types);
+    let beads = TypedBeads::new(out.as_slice(), &types);
     assert_eq!(beads.is_symmetrical(), false);
     assert_eq!(beads.len(), 5);
 }
 
 #[test]
 fn push_single_type_sequence() {
-    let mut builder = BeadsSequenceBuilder::new(
+    let mut builder = TypedBeadsBuilder::new(
         &BeadTypeSet::new(&[BeadType::U8])
-    );
+    ).ok().unwrap();
 
     builder.push_uint(20);
     builder.push_uint(21);
@@ -709,7 +709,7 @@ fn push_single_type_sequence() {
 #[test]
 fn roundtrip_single_type_string_sequence() {
     let types = BeadTypeSet::new(&[BeadType::Utf8]);
-    let mut builder = BeadsSequenceBuilder::new(&types);
+    let mut builder = TypedBeadsBuilder::new(&types).ok().unwrap();
     let values = vec!["Max", "Maxim", "Alex"];
     for v in values.iter() {
         builder.push_string(*v);
@@ -717,7 +717,7 @@ fn roundtrip_single_type_string_sequence() {
     let mut out = Vec::new();
     builder.encode(&mut out);
 
-    let beads = BeadsSequence::new(out.as_slice(), &types);
+    let beads = TypedBeads::new(out.as_slice(), &types);
     assert_eq!(beads.is_symmetrical(), false);
     assert_eq!(beads.len(), 3);
 
@@ -729,14 +729,14 @@ fn roundtrip_single_type_string_sequence() {
 #[test]
 fn roundtrip_single_type_int_sequence() {
     let types = BeadTypeSet::new(&[BeadType::I16]);
-    let mut builder = BeadsSequenceBuilder::new(&types);
+    let mut builder = TypedBeadsBuilder::new(&types).ok().unwrap();
     for v in 0..100 {
         builder.push_int(v);
     }
     let mut out = Vec::new();
     builder.encode_with_types(&mut out);
 
-    let beads = BeadsSequence::new_types_included(out.as_slice());
+    let beads = TypedBeads::new_types_included(out.as_slice());
     assert_eq!(beads.is_symmetrical(), true);
     assert_eq!(beads.len(), 100);
     let symb = beads.symmetric().ok().unwrap();
@@ -749,9 +749,9 @@ fn roundtrip_single_type_int_sequence() {
 #[test]
 fn roundtrip_type_priority() {
     let types = BeadTypeSet::new(&[BeadType::U8, BeadType::I8]);
-    let mut builder = BeadsSequenceBuilder::new(
+    let mut builder = TypedBeadsBuilder::new(
         &types
-    );
+    ).ok().unwrap();
     let values = vec![-1, 20, 203, 204];
 
     for v in values.iter() {
@@ -761,7 +761,7 @@ fn roundtrip_type_priority() {
     let mut buffer: Vec<u8> = vec![];
     builder.encode(&mut buffer);
 
-    let beads = BeadsSequence::new(buffer.as_slice(), &types);
+    let beads = TypedBeads::new(buffer.as_slice(), &types);
     let out_values: Vec<i128> = beads.iter().map(|b|{b.to_int()}).collect();
     assert_eq!(out_values, values);
 }
@@ -769,9 +769,9 @@ fn roundtrip_type_priority() {
 #[test]
 fn roundtrip_type_priority_3_type() {
     let types = BeadTypeSet::new(&[BeadType::U8, BeadType::I8, BeadType::None]);
-    let mut builder = BeadsSequenceBuilder::new(
+    let mut builder = TypedBeadsBuilder::new(
         &types
-    );
+    ).ok().unwrap();
     let values = vec![-1, 20, 203, 204];
 
     for v in values.iter() {
@@ -781,7 +781,7 @@ fn roundtrip_type_priority_3_type() {
     let mut buffer: Vec<u8> = vec![];
     builder.encode(&mut buffer);
 
-    let beads = BeadsSequence::new(buffer.as_slice(), &types);
+    let beads = TypedBeads::new(buffer.as_slice(), &types);
     let out_values: Vec<i128> = beads.iter().map(|b|{b.to_int()}).collect();
     assert_eq!(out_values, values);
 }
@@ -789,9 +789,9 @@ fn roundtrip_type_priority_3_type() {
 #[test]
 fn roundtrip_type_priority_5_type() {
     let types = BeadTypeSet::new(&[BeadType::U8, BeadType::I8, BeadType::None, BeadType::TrueFlag, BeadType::FalseFlag]);
-    let mut builder = BeadsSequenceBuilder::new(
+    let mut builder = TypedBeadsBuilder::new(
         &types
-    );
+    ).ok().unwrap();
     let values = vec![-1, 20, 203, 204];
 
     for v in values.iter() {
@@ -801,7 +801,7 @@ fn roundtrip_type_priority_5_type() {
     let mut buffer: Vec<u8> = vec![];
     builder.encode(&mut buffer);
 
-    let beads = BeadsSequence::new(buffer.as_slice(), &types);
+    let beads = TypedBeads::new(buffer.as_slice(), &types);
     let out_values: Vec<i128> = beads.iter().map(|b|{b.to_int()}).collect();
     assert_eq!(out_values, values);
 }
@@ -809,9 +809,9 @@ fn roundtrip_type_priority_5_type() {
 #[test]
 fn roundtrip_type_priority_plus_unfit_value() {
     let types = BeadTypeSet::new(&[BeadType::U8, BeadType::I8]);
-    let mut builder = BeadsSequenceBuilder::new(
+    let mut builder = TypedBeadsBuilder::new(
         &types
-    );
+    ).ok().unwrap();
     let values = vec![-1, 403, 20, 204];
 
     for v in values.iter() {
@@ -821,7 +821,7 @@ fn roundtrip_type_priority_plus_unfit_value() {
     let mut buffer: Vec<u8> = vec![];
     builder.encode(&mut buffer);
 
-    let beads = BeadsSequence::new(buffer.as_slice(), &types);
+    let beads = TypedBeads::new(buffer.as_slice(), &types);
     let out_values: Vec<i128> = beads.iter().map(|b|{b.to_int()}).collect();
     assert_eq!(out_values, vec![-1, 20, 204]);
 }
@@ -829,9 +829,9 @@ fn roundtrip_type_priority_plus_unfit_value() {
 #[test]
 fn roundtrip_type_priority_plus_unfit_type() {
     let types = BeadTypeSet::new(&[BeadType::U8, BeadType::I8]);
-    let mut builder = BeadsSequenceBuilder::new(
+    let mut builder = TypedBeadsBuilder::new(
         &types
-    );
+    ).ok().unwrap();
     let values = vec![-1, 403, 20, 204];
 
     for v in values.iter() {
@@ -842,7 +842,7 @@ fn roundtrip_type_priority_plus_unfit_type() {
     let mut buffer: Vec<u8> = vec![];
     builder.encode(&mut buffer);
 
-    let beads = BeadsSequence::new(buffer.as_slice(), &types);
+    let beads = TypedBeads::new(buffer.as_slice(), &types);
     let out_values: Vec<i128> = beads.iter().map(|b|{b.to_int()}).collect();
     assert_eq!(out_values, vec![-1, 20, 204]);
 }
@@ -850,9 +850,9 @@ fn roundtrip_type_priority_plus_unfit_type() {
 #[test]
 fn roundtrip_type_priority_5_types_plus_unfit_value() {
     let types = BeadTypeSet::new(&[BeadType::U8, BeadType::I8, BeadType::I16, BeadType::U16, BeadType::F16]);
-    let mut builder = BeadsSequenceBuilder::new(
+    let mut builder = TypedBeadsBuilder::new(
         &types
-    );
+    ).ok().unwrap();
     let values = vec![-1, 403, 20, 204];
 
     for v in values.iter() {
@@ -863,7 +863,7 @@ fn roundtrip_type_priority_5_types_plus_unfit_value() {
     let mut buffer: Vec<u8> = vec![];
     builder.encode(&mut buffer);
 
-    let beads = BeadsSequence::new(buffer.as_slice(), &types);
+    let beads = TypedBeads::new(buffer.as_slice(), &types);
     let out_values: Vec<i128> = beads.iter().map(|b|{b.to_int()}).collect();
     assert_eq!(out_values, values);
 }
@@ -871,9 +871,9 @@ fn roundtrip_type_priority_5_types_plus_unfit_value() {
 #[test]
 fn roundtrip_push_double_with_accuracy() {
     let types = BeadTypeSet::new(&[BeadType::F16, BeadType::F32, BeadType::F64]);
-    let mut builder = BeadsSequenceBuilder::new(
+    let mut builder = TypedBeadsBuilder::new(
         &types
-    );
+    ).ok().unwrap();
     builder.push_double(0.1);
     builder.push_double_with_accuracy(0.1, std::f32::EPSILON as f64);
     builder.push_double_with_accuracy(0.1, 0.01);
@@ -887,7 +887,7 @@ fn roundtrip_push_double_with_accuracy() {
         205, 204, 204, 61,
         102, 46]);
 
-    let beads = BeadsSequence::new(buffer.as_slice(), &types);
+    let beads = TypedBeads::new(buffer.as_slice(), &types);
     let out_values: Vec<f64> = beads.iter().map(|b|{b.to_float()}).collect();
     assert_eq!(out_values, vec![0.1, 0.10000000149011612, 0.0999755859375]);
 }
@@ -1012,7 +1012,7 @@ fn roundtrip_fixed_size_beads_with_incremental_uint_builder() {
 
 #[test]
 fn roundtrip_dedup_f64() {
-    let mut builder = BeadsSequenceBuilder::new(&BeadTypeSet::new(&[BeadType::F64]));
+    let mut builder = TypedBeadsBuilder::new(&BeadTypeSet::new(&[BeadType::F64])).ok().unwrap();
     builder.push_double(0.1);
     builder.push_double(0.1);
     builder.push_double(0.3);

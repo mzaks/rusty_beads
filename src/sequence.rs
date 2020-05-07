@@ -6,14 +6,14 @@ use crate::reference::BeadReference;
 use std::ops::Index;
 use crate::converters::u128_from_slice;
 
-pub struct BeadsSequence<'a> {
+pub struct TypedBeads<'a> {
     buffer: &'a[u8],
     count: usize,
     types: Vec<BeadType>,
 }
 
-impl<'a> BeadsSequence<'a> {
-    pub fn new(buffer: &'a[u8], types: &'_ BeadTypeSet) -> BeadsSequence<'a> {
+impl<'a> TypedBeads<'a> {
+    pub fn new(buffer: &'a[u8], types: &'_ BeadTypeSet) -> TypedBeads<'a> {
         if types.size() < 1 || types.size() > 16 {
             panic!("Beads sequence can carry only 1..=16 types");
         }
@@ -26,14 +26,14 @@ impl<'a> BeadsSequence<'a> {
 
         let (vlq_len, count) = read_vlq(buffer);
 
-        BeadsSequence {
+        TypedBeads {
             buffer: buffer[vlq_len..].as_ref(),
             count: count as usize,
             types: _types
         }
     }
 
-    pub fn new_types_included(buffer: &'a[u8]) -> BeadsSequence<'a> {
+    pub fn new_types_included(buffer: &'a[u8]) -> TypedBeads<'a> {
         let types_value = u32::from_le_bytes(BeadReference::clone_into_array(&buffer[..4]));
         Self::new(&buffer[4..], (BeadTypeSet::from(types_value)).borrow())
     }
@@ -58,9 +58,9 @@ impl<'a> BeadsSequence<'a> {
         false
     }
 
-    pub fn symmetric(&self) -> Result<SymmetricBeadsSequence, &'static str> {
+    pub fn symmetric(&self) -> Result<SymmetricTypedBeads, &'static str> {
         if self.is_symmetrical() {
-            Ok(SymmetricBeadsSequence{
+            Ok(SymmetricTypedBeads {
                 buffer: self.buffer,
                 count: self.count,
                 types: self.types.clone(),
@@ -82,7 +82,7 @@ impl<'a> BeadsSequence<'a> {
     }
 }
 
-pub struct SymmetricBeadsSequence<'a> {
+pub struct SymmetricTypedBeads<'a> {
     buffer: &'a[u8],
     count: usize,
     types: Vec<BeadType>,
@@ -91,7 +91,7 @@ pub struct SymmetricBeadsSequence<'a> {
     tag_mask: u8
 }
 
-impl <'a> SymmetricBeadsSequence<'a> {
+impl <'a> SymmetricTypedBeads<'a> {
     pub fn get(&self, index: usize) -> BeadReference<'a> {
         if index >= self.count {
             panic!("Index: {} is out of bounds. Sequence size is {}", index, self.count);
