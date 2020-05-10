@@ -31,7 +31,7 @@ fn bit_set() {
     let beads = TypedBeads::new(
         buffer.as_slice(),
         &BeadTypeSet::new(&[BeadType::TrueFlag, BeadType::FalseFlag])
-    );
+    ).ok().unwrap();
     println!("Number of elements: {}", beads.len());
 
     for bead in beads.iter() {
@@ -44,11 +44,11 @@ fn bit_set() {
 
     let beads = TypedBeads::new_types_included(
         buffer.as_slice()
-    );
+    ).ok().unwrap();
     println!("Number of elements: {}", beads.len());
 
     let sym_beads = beads.symmetric().ok().unwrap();
-    println!("Value at index {} is {}", 3, sym_beads.get(3).to_bool());
+    println!("Value at index {} is {}", 3, sym_beads.get(3).unwrap().to_bool());
 }
 
 fn run_numbers() {
@@ -65,7 +65,7 @@ fn run_numbers() {
     builder.encode(&mut out);
     println!("Data as beads: {:?}, len: {}", out, out.len());
 
-    let beads = TypedBeads::new(out.as_slice(), &types);
+    let beads = TypedBeads::new(out.as_slice(), &types).ok().unwrap();
 
     println!("Beads count: {}", beads.len());
     for b in beads.iter() {
@@ -99,7 +99,7 @@ fn run_strings() {
     builder.encode(&mut out);
     println!("Data as beads: {:?}, len: {}", out, out.len());
 
-    let beads = TypedBeads::new(out.as_slice(), &types);
+    let beads = TypedBeads::new(out.as_slice(), &types).ok().unwrap();
 
     println!("Beads count: {}", beads.len());
     for b in beads.iter() {

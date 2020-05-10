@@ -26,13 +26,16 @@ impl <'a> Iterator for BeadsIterator<'a> {
         let bead_type = if self.types.len() == 1 {self.types[0]} else {self.get_type()};
         let tag_addition = if bead_type.has_no_data() { 0 } else { 1 };
         let mut start = if self.types.len() == 1 {self.data_cursor} else {max(self.data_cursor, self.tag_cursor + tag_addition)};
-        let (data_length, data_value) = Self::get_data_length_and_value(self.buffer[start..].as_ref(), bead_type);
+        let (data_length, data_value) = Self::get_data_length_and_value(self.buffer[start..].as_ref(), bead_type).ok()?;
         self.data_cursor = start + data_length;
         if bead_type == BeadType::Utf8 || bead_type == BeadType::Bytes {
             self.data_cursor += data_value as usize;
             start += data_length;
         }
         self.index += 1;
+        if self.buffer.len() < self.data_cursor {
+            return None;
+        }
         Some(BeadReference {
             value: data_value,
             buffer: self.buffer[start..self.data_cursor].as_ref(),
@@ -76,15 +79,15 @@ impl <'a> BeadsIterator <'_> {
         self.types[type_index]
     }
 
-    fn get_data_length_and_value(buffer: &[u8], bead_type: BeadType) -> (usize, u128) {
+    fn get_data_length_and_value(buffer: &[u8], bead_type: BeadType) -> Result<(usize, u128), &'static str> {
         return match bead_type {
-            BeadType::None | BeadType::TrueFlag | BeadType::FalseFlag => (0, 0),
-            BeadType::U8 | BeadType::I8 => (1, 0),
-            BeadType::U16 | BeadType::I16 | BeadType::F16 => (2, 0),
-            BeadType::U32 | BeadType::I32 | BeadType::F32 => (4, 0),
-            BeadType::U64 | BeadType::I64 | BeadType::F64 => (8, 0),
-            BeadType::U128 | BeadType::I128 => (8, 0),
-            BeadType::Vlq | BeadType::VlqZ | BeadType::Utf8 | BeadType::Bytes => read_vlq(buffer),
+            BeadType::None | BeadType::TrueFlag | BeadType::FalseFlag => Ok((0, 0)),
+            BeadType::U8 | BeadType::I8 => Ok((1, 0)),
+            BeadType::U16 | BeadType::I16 | BeadType::F16 => Ok((2, 0)),
+            BeadType::U32 | BeadType::I32 | BeadType::F32 => Ok((4, 0)),
+            BeadType::U64 | BeadType::I64 | BeadType::F64 => Ok((8, 0)),
+            BeadType::U128 | BeadType::I128 => Ok((8, 0)),
+            BeadType::Vlq | BeadType::VlqZ | BeadType::Utf8 | BeadType::Bytes => read_vlq(buffer).map(|v|v),
         }
     }
 }

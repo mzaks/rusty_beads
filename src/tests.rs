@@ -373,7 +373,7 @@ fn create_beads_sequence() {
     let beads = TypedBeads::new(
         &[12, 116, 11],
         &BeadTypeSet::new(&[BeadType::TrueFlag, BeadType::FalseFlag])
-    );
+    ).ok().unwrap();
     assert_eq!(beads.len(), 12);
 
     let refs: Vec<bool> =  beads.iter().map(|x| x.to_bool()).collect();
@@ -392,7 +392,7 @@ fn roundtrip_strings() {
     let mut out = Vec::new();
     builder.encode(&mut out);
 
-    let beads = TypedBeads::new(out.as_slice(), &types);
+    let beads = TypedBeads::new(out.as_slice(), &types).ok().unwrap();
     for (index, b) in beads.iter().enumerate() {
         assert_eq!(b.to_str(), strings[index])
     }
@@ -411,7 +411,7 @@ fn roundtrip_strings_types_included() {
     let mut out = Vec::new();
     builder.encode_with_types(&mut out);
 
-    let beads = TypedBeads::new_types_included(out.as_slice());
+    let beads = TypedBeads::new_types_included(out.as_slice()).ok().unwrap();
     for (index, b) in beads.iter().enumerate() {
         assert_eq!(b.to_str(), strings[index])
     }
@@ -428,7 +428,7 @@ fn roundtrip_strings_3_types() {
     let mut out = Vec::new();
     builder.encode(&mut out);
 
-    let beads = TypedBeads::new(out.as_slice(), &types);
+    let beads = TypedBeads::new(out.as_slice(), &types).ok().unwrap();
     for (index, b) in beads.iter().enumerate() {
         assert_eq!(b.to_str(), strings[index])
     }
@@ -445,7 +445,7 @@ fn roundtrip_strings_5_types() {
     let mut out = Vec::new();
     builder.encode(&mut out);
 
-    let beads = TypedBeads::new(out.as_slice(), &types);
+    let beads = TypedBeads::new(out.as_slice(), &types).ok().unwrap();
     for (index, b) in beads.iter().enumerate() {
         assert_eq!(b.to_str(), strings[index])
     }
@@ -462,7 +462,7 @@ fn roundtrip_strings_5_types_types_included() {
     let mut out = Vec::new();
     builder.encode_with_types(&mut out);
 
-    let beads = TypedBeads::new_types_included(out.as_slice());
+    let beads = TypedBeads::new_types_included(out.as_slice()).ok().unwrap();
     for (index, b) in beads.iter().enumerate() {
         assert_eq!(b.to_str(), strings[index])
     }
@@ -479,7 +479,7 @@ fn non_symmetric_sequence() {
     let mut out = Vec::new();
     builder.encode(&mut out);
 
-    let beads = TypedBeads::new(out.as_slice(), &types);
+    let beads = TypedBeads::new(out.as_slice(), &types).ok().unwrap();
     assert_eq!(beads.is_symmetrical(), false);
 }
 
@@ -494,15 +494,15 @@ fn symmetric_sequence_bool() {
     let mut out = Vec::new();
     builder.encode(&mut out);
 
-    let beads = TypedBeads::new(out.as_slice(), &types);
+    let beads = TypedBeads::new(out.as_slice(), &types).ok().unwrap();
     assert_eq!(beads.is_symmetrical(), true);
 
     let symb = beads.symmetric().ok().unwrap();
     assert_eq!(symb.len(), 4);
-    assert_eq!(symb.get(0).to_bool(), true);
-    assert_eq!(symb.get(1).to_bool(), true);
-    assert_eq!(symb.get(2).to_bool(), false);
-    assert_eq!(symb.get(3).to_bool(), true);
+    assert_eq!(symb.get(0).unwrap().to_bool(), true);
+    assert_eq!(symb.get(1).unwrap().to_bool(), true);
+    assert_eq!(symb.get(2).unwrap().to_bool(), false);
+    assert_eq!(symb.get(3).unwrap().to_bool(), true);
 }
 
 #[test]
@@ -517,17 +517,17 @@ fn symmetric_sequence_bool_and_none() {
     let mut out = Vec::new();
     builder.encode(&mut out);
 
-    let beads = TypedBeads::new(out.as_slice(), &types);
+    let beads = TypedBeads::new(out.as_slice(), &types).ok().unwrap();
     assert_eq!(beads.is_symmetrical(), true);
     assert_eq!(beads.len(), 5);
 
     let symb = beads.symmetric().ok().unwrap();
     assert_eq!(symb.len(), 5);
-    assert_eq!(symb.get(0).to_bool(), true);
-    assert_eq!(symb.get(1).to_bool(), true);
-    assert_eq!(symb.get(2).to_bool(), false);
-    assert_eq!(symb.get(3).to_bool(), true);
-    assert_eq!(symb.get(4).is_none(), true);
+    assert_eq!(symb.get(0).unwrap().to_bool(), true);
+    assert_eq!(symb.get(1).unwrap().to_bool(), true);
+    assert_eq!(symb.get(2).unwrap().to_bool(), false);
+    assert_eq!(symb.get(3).unwrap().to_bool(), true);
+    assert_eq!(symb.get(4).unwrap().is_none(), true);
 }
 
 #[test]
@@ -541,17 +541,17 @@ fn symmetric_sequence_one_byte_numbers() {
     let mut out = Vec::new();
     builder.encode(&mut out);
 
-    let beads = TypedBeads::new(out.as_slice(), &types);
+    let beads = TypedBeads::new(out.as_slice(), &types).ok().unwrap();
     assert_eq!(beads.is_symmetrical(), true);
     assert_eq!(beads.len(), 5);
 
     let symb = beads.symmetric().ok().unwrap();
     assert_eq!(symb.len(), 5);
-    assert_eq!(symb.get(0).to_int(), 1);
-    assert_eq!(symb.get(1).to_int(), -4);
-    assert_eq!(symb.get(2).to_int(), 6);
-    assert_eq!(symb.get(3).to_int(), 0);
-    assert_eq!(symb.get(4).to_int(), -9);
+    assert_eq!(symb.get(0).unwrap().to_int(), 1);
+    assert_eq!(symb.get(1).unwrap().to_int(), -4);
+    assert_eq!(symb.get(2).unwrap().to_int(), 6);
+    assert_eq!(symb.get(3).unwrap().to_int(), 0);
+    assert_eq!(symb.get(4).unwrap().to_int(), -9);
 }
 
 #[test]
@@ -565,17 +565,17 @@ fn symmetric_sequence_two_byte_numbers_3_types() {
     let mut out = Vec::new();
     builder.encode(&mut out);
 
-    let beads = TypedBeads::new(out.as_slice(), &types);
+    let beads = TypedBeads::new(out.as_slice(), &types).ok().unwrap();
     assert_eq!(beads.is_symmetrical(), true);
     assert_eq!(beads.len(), 5);
 
     let symb = beads.symmetric().ok().unwrap();
     assert_eq!(symb.len(), 5);
-    assert_eq!(symb.get(0).to_int(), 1);
-    assert_eq!(symb.get(1).to_int(), -4);
-    assert_eq!(symb.get(2).to_int(), 6);
-    assert_eq!(symb.get(3).to_int(), 0);
-    assert_eq!(symb.get(4).to_int(), -9);
+    assert_eq!(symb.get(0).unwrap().to_int(), 1);
+    assert_eq!(symb.get(1).unwrap().to_int(), -4);
+    assert_eq!(symb.get(2).unwrap().to_int(), 6);
+    assert_eq!(symb.get(3).unwrap().to_int(), 0);
+    assert_eq!(symb.get(4).unwrap().to_int(), -9);
 }
 
 #[test]
@@ -589,17 +589,17 @@ fn symmetric_sequence_four_byte_numbers_3_types() {
     let mut out = Vec::new();
     builder.encode(&mut out);
 
-    let beads = TypedBeads::new(out.as_slice(), &types);
+    let beads = TypedBeads::new(out.as_slice(), &types).ok().unwrap();
     assert_eq!(beads.is_symmetrical(), true);
     assert_eq!(beads.len(), 5);
 
     let symb = beads.symmetric().ok().unwrap();
     assert_eq!(symb.len(), 5);
-    assert_eq!(symb.get(0).to_int(), 1);
-    assert_eq!(symb.get(1).to_int(), -4);
-    assert_eq!(symb.get(2).to_int(), 6);
-    assert_eq!(symb.get(3).to_int(), 0);
-    assert_eq!(symb.get(4).to_int(), -9);
+    assert_eq!(symb.get(0).unwrap().to_int(), 1);
+    assert_eq!(symb.get(1).unwrap().to_int(), -4);
+    assert_eq!(symb.get(2).unwrap().to_int(), 6);
+    assert_eq!(symb.get(3).unwrap().to_int(), 0);
+    assert_eq!(symb.get(4).unwrap().to_int(), -9);
 }
 
 #[test]
@@ -613,17 +613,17 @@ fn symmetric_sequence_eight_byte_numbers_3_types() {
     let mut out = Vec::new();
     builder.encode(&mut out);
 
-    let beads = TypedBeads::new(out.as_slice(), &types);
+    let beads = TypedBeads::new(out.as_slice(), &types).ok().unwrap();
     assert_eq!(beads.is_symmetrical(), true);
     assert_eq!(beads.len(), 5);
 
     let symb = beads.symmetric().ok().unwrap();
     assert_eq!(symb.len(), 5);
-    assert_eq!(symb.get(0).to_int(), 1);
-    assert_eq!(symb.get(1).to_int(), -4);
-    assert_eq!(symb.get(2).to_int(), 6);
-    assert_eq!(symb.get(3).to_int(), 0);
-    assert_eq!(symb.get(4).to_int(), -9);
+    assert_eq!(symb.get(0).unwrap().to_int(), 1);
+    assert_eq!(symb.get(1).unwrap().to_int(), -4);
+    assert_eq!(symb.get(2).unwrap().to_int(), 6);
+    assert_eq!(symb.get(3).unwrap().to_int(), 0);
+    assert_eq!(symb.get(4).unwrap().to_int(), -9);
 }
 
 #[test]
@@ -637,17 +637,17 @@ fn symmetric_sequence_sixteen_byte_numbers() {
     let mut out = Vec::new();
     builder.encode(&mut out);
 
-    let beads = TypedBeads::new(out.as_slice(), &types);
+    let beads = TypedBeads::new(out.as_slice(), &types).ok().unwrap();
     assert_eq!(beads.is_symmetrical(), true);
     assert_eq!(beads.len(), 5);
 
     let symb = beads.symmetric().ok().unwrap();
     assert_eq!(symb.len(), 5);
-    assert_eq!(symb.get(0).to_int(), 1);
-    assert_eq!(symb.get(1).to_int(), -4);
-    assert_eq!(symb.get(2).to_int(), 6);
-    assert_eq!(symb.get(3).to_int(), 0);
-    assert_eq!(symb.get(4).to_int(), -9);
+    assert_eq!(symb.get(0).unwrap().to_int(), 1);
+    assert_eq!(symb.get(1).unwrap().to_int(), -4);
+    assert_eq!(symb.get(2).unwrap().to_int(), 6);
+    assert_eq!(symb.get(3).unwrap().to_int(), 0);
+    assert_eq!(symb.get(4).unwrap().to_int(), -9);
 }
 
 #[test]
@@ -660,14 +660,14 @@ fn symmetric_sequence_four_byte_numbers_3_types_100_values() {
     let mut out = Vec::new();
     builder.encode(&mut out);
 
-    let beads = TypedBeads::new(out.as_slice(), &types);
+    let beads = TypedBeads::new(out.as_slice(), &types).ok().unwrap();
     assert_eq!(beads.is_symmetrical(), true);
     assert_eq!(beads.len(), 100);
 
     let symb = beads.symmetric().ok().unwrap();
     assert_eq!(symb.len(), 100);
     for v in 0..100 {
-        assert_eq!(symb.get(v).to_float(), (v as f64) - 50.0);
+        assert_eq!(symb.get(v).unwrap().to_float(), (v as f64) - 50.0);
     }
 }
 
@@ -682,7 +682,7 @@ fn non_symmetric_sequence_one_byte_numbers() {
     let mut out = Vec::new();
     builder.encode(&mut out);
 
-    let beads = TypedBeads::new(out.as_slice(), &types);
+    let beads = TypedBeads::new(out.as_slice(), &types).ok().unwrap();
     assert_eq!(beads.is_symmetrical(), false);
     assert_eq!(beads.len(), 5);
 }
@@ -717,7 +717,7 @@ fn roundtrip_single_type_string_sequence() {
     let mut out = Vec::new();
     builder.encode(&mut out);
 
-    let beads = TypedBeads::new(out.as_slice(), &types);
+    let beads = TypedBeads::new(out.as_slice(), &types).ok().unwrap();
     assert_eq!(beads.is_symmetrical(), false);
     assert_eq!(beads.len(), 3);
 
@@ -736,13 +736,13 @@ fn roundtrip_single_type_int_sequence() {
     let mut out = Vec::new();
     builder.encode_with_types(&mut out);
 
-    let beads = TypedBeads::new_types_included(out.as_slice());
+    let beads = TypedBeads::new_types_included(out.as_slice()).ok().unwrap();
     assert_eq!(beads.is_symmetrical(), true);
     assert_eq!(beads.len(), 100);
     let symb = beads.symmetric().ok().unwrap();
 
     for index in 0..100 {
-        assert_eq!(symb.get(index).to_int(), index as i128)
+        assert_eq!(symb.get(index).unwrap().to_int(), index as i128)
     }
 }
 
@@ -761,7 +761,7 @@ fn roundtrip_type_priority() {
     let mut buffer: Vec<u8> = vec![];
     builder.encode(&mut buffer);
 
-    let beads = TypedBeads::new(buffer.as_slice(), &types);
+    let beads = TypedBeads::new(buffer.as_slice(), &types).ok().unwrap();
     let out_values: Vec<i128> = beads.iter().map(|b|{b.to_int()}).collect();
     assert_eq!(out_values, values);
 }
@@ -781,7 +781,7 @@ fn roundtrip_type_priority_3_type() {
     let mut buffer: Vec<u8> = vec![];
     builder.encode(&mut buffer);
 
-    let beads = TypedBeads::new(buffer.as_slice(), &types);
+    let beads = TypedBeads::new(buffer.as_slice(), &types).ok().unwrap();
     let out_values: Vec<i128> = beads.iter().map(|b|{b.to_int()}).collect();
     assert_eq!(out_values, values);
 }
@@ -801,7 +801,7 @@ fn roundtrip_type_priority_5_type() {
     let mut buffer: Vec<u8> = vec![];
     builder.encode(&mut buffer);
 
-    let beads = TypedBeads::new(buffer.as_slice(), &types);
+    let beads = TypedBeads::new(buffer.as_slice(), &types).ok().unwrap();
     let out_values: Vec<i128> = beads.iter().map(|b|{b.to_int()}).collect();
     assert_eq!(out_values, values);
 }
@@ -821,7 +821,7 @@ fn roundtrip_type_priority_plus_unfit_value() {
     let mut buffer: Vec<u8> = vec![];
     builder.encode(&mut buffer);
 
-    let beads = TypedBeads::new(buffer.as_slice(), &types);
+    let beads = TypedBeads::new(buffer.as_slice(), &types).ok().unwrap();
     let out_values: Vec<i128> = beads.iter().map(|b|{b.to_int()}).collect();
     assert_eq!(out_values, vec![-1, 20, 204]);
 }
@@ -842,7 +842,7 @@ fn roundtrip_type_priority_plus_unfit_type() {
     let mut buffer: Vec<u8> = vec![];
     builder.encode(&mut buffer);
 
-    let beads = TypedBeads::new(buffer.as_slice(), &types);
+    let beads = TypedBeads::new(buffer.as_slice(), &types).ok().unwrap();
     let out_values: Vec<i128> = beads.iter().map(|b|{b.to_int()}).collect();
     assert_eq!(out_values, vec![-1, 20, 204]);
 }
@@ -863,7 +863,7 @@ fn roundtrip_type_priority_5_types_plus_unfit_value() {
     let mut buffer: Vec<u8> = vec![];
     builder.encode(&mut buffer);
 
-    let beads = TypedBeads::new(buffer.as_slice(), &types);
+    let beads = TypedBeads::new(buffer.as_slice(), &types).ok().unwrap();
     let out_values: Vec<i128> = beads.iter().map(|b|{b.to_int()}).collect();
     assert_eq!(out_values, values);
 }
@@ -887,7 +887,7 @@ fn roundtrip_push_double_with_accuracy() {
         205, 204, 204, 61,
         102, 46]);
 
-    let beads = TypedBeads::new(buffer.as_slice(), &types);
+    let beads = TypedBeads::new(buffer.as_slice(), &types).ok().unwrap();
     let out_values: Vec<f64> = beads.iter().map(|b|{b.to_float()}).collect();
     assert_eq!(out_values, vec![0.1, 0.10000000149011612, 0.0999755859375]);
 }
@@ -925,7 +925,7 @@ fn roundtrip_indexed_beads_builder() {
     let mut buffer: Vec<u8> = vec![];
     builder.encode(&mut buffer);
 
-    let ib = IndexedBeads::new(buffer.as_slice());
+    let ib = IndexedBeads::new(buffer.as_slice()).ok().unwrap();
 
     assert_eq!(ib.len(), 2);
     assert_eq!(ib[0].to_vec(), vec![1, 2, 3, 4]);
@@ -943,7 +943,7 @@ fn roundtrip_large_indexed_beads_builder() {
     let mut buffer: Vec<u8> = vec![];
     builder.encode(&mut buffer);
 
-    let ib = IndexedBeads::new(buffer.as_slice());
+    let ib = IndexedBeads::new(buffer.as_slice()).ok().unwrap();
 
     assert_eq!(ib.len(), number_of_beads);
     assert_eq!(ib[number_of_beads / 2].to_vec(), vec![1, 2, 3, 4]);
@@ -962,7 +962,7 @@ fn roundtrip_fixed_size_beads() {
 
     assert_eq!(buffer, vec![3, 1, 2, 3, 10, 20, 30, 30, 50, 90, 130, 150, 190]);
 
-    let fs_beads = FixedSizeBeads::new(&buffer);
+    let fs_beads = FixedSizeBeads::new(&buffer).ok().unwrap();
     assert_eq!(fs_beads.len(), 4);
 
     assert_eq!(fs_beads[0].to_vec(), vec![1, 2, 3]);
@@ -984,7 +984,7 @@ fn roundtrip_fixed_size_beads_with_incremental_uint_builder() {
 
     assert_eq!(buffer, vec![1, 1, 2, 20, 205]);
 
-    let fs_beads = FixedSizeBeads::new(&buffer);
+    let fs_beads = FixedSizeBeads::new(&buffer).ok().unwrap();
     assert_eq!(fs_beads.len(), 4);
 
     assert_eq!(fs_beads[0].to_vec(), vec![1]);
@@ -1000,7 +1000,7 @@ fn roundtrip_fixed_size_beads_with_incremental_uint_builder() {
 
     assert_eq!(buffer, vec![2, 1, 0, 2, 0, 20, 0, 205, 0, 84, 1]);
 
-    let fs_beads = FixedSizeBeads::new(&buffer);
+    let fs_beads = FixedSizeBeads::new(&buffer).ok().unwrap();
     assert_eq!(fs_beads.len(), 5);
 
     assert_eq!(fs_beads[0].to_vec(), vec![1, 0]);
@@ -1026,15 +1026,15 @@ fn roundtrip_dedup_f64() {
 
     let mut dedup_buffer = vec![];
 
-    beads_to_dedup_beads(&buffer, &BeadTypeSet::new(&[BeadType::F64]), &mut dedup_buffer);
+    beads_to_dedup_beads(&buffer, &BeadTypeSet::new(&[BeadType::F64]), &mut dedup_buffer).ok().unwrap();
 
     assert_eq!(dedup_buffer, vec![16, 6, 34, 1, 0, 0, 1, 2, 1, 24, 8, 16, 24, 154, 153, 153, 153, 153, 153, 185, 63, 51, 51, 51, 51, 51, 51, 211, 63, 154, 153, 153, 153, 153, 153, 201, 63]);
 
     let dedup = DedupBeads::new(dedup_buffer.as_slice());
-    assert_eq!(dedup.len(), 5);
-    assert_eq!(dedup.get(0), <f64>::to_le_bytes(0.1).to_vec());
-    assert_eq!(dedup.get(1), <f64>::to_le_bytes(0.1).to_vec());
-    assert_eq!(dedup.get(2), <f64>::to_le_bytes(0.3).to_vec());
-    assert_eq!(dedup.get(3), <f64>::to_le_bytes(0.2).to_vec());
-    assert_eq!(dedup.get(4), <f64>::to_le_bytes(0.3).to_vec());
+    assert_eq!(dedup.len().ok().unwrap(), 5);
+    assert_eq!(dedup.get(0).ok().unwrap(), <f64>::to_le_bytes(0.1).to_vec());
+    assert_eq!(dedup.get(1).ok().unwrap(), <f64>::to_le_bytes(0.1).to_vec());
+    assert_eq!(dedup.get(2).ok().unwrap(), <f64>::to_le_bytes(0.3).to_vec());
+    assert_eq!(dedup.get(3).ok().unwrap(), <f64>::to_le_bytes(0.2).to_vec());
+    assert_eq!(dedup.get(4).ok().unwrap(), <f64>::to_le_bytes(0.3).to_vec());
 }

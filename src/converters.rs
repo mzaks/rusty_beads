@@ -79,7 +79,7 @@ pub fn csv_to_indexed_string_beads<W>(csv: &str, writer: &mut W) -> Result<(), &
 }
 
 pub fn string_beads_to_int_beads<W>(buffer: &[u8], type_set: &BeadTypeSet, writer: &mut W)  -> Result<(), String> where W: io::Write {
-    let string_beads = TypedBeads::new(buffer, &BeadTypeSet::new(&[BeadType::Utf8]));
+    let string_beads = TypedBeads::new(buffer, &BeadTypeSet::new(&[BeadType::Utf8]))?;
     let mut builder = TypedBeadsBuilder::new(type_set)?;
     for sb in string_beads.iter() {
         let s = sb.to_str();
@@ -104,7 +104,7 @@ pub fn string_beads_to_int_beads<W>(buffer: &[u8], type_set: &BeadTypeSet, write
 }
 
 pub fn string_beads_to_double_beads<W>(buffer: &[u8], type_set: &BeadTypeSet, accuracy: f64, writer: &mut W)  -> Result<(), String> where W: io::Write {
-    let string_beads = TypedBeads::new(buffer, &BeadTypeSet::new(&[BeadType::Utf8]));
+    let string_beads = TypedBeads::new(buffer, &BeadTypeSet::new(&[BeadType::Utf8]))?;
     let mut builder = TypedBeadsBuilder::new(type_set)?;
     for sb in string_beads.iter() {
         let s = sb.to_str();
@@ -128,13 +128,14 @@ pub fn string_beads_to_double_beads<W>(buffer: &[u8], type_set: &BeadTypeSet, ac
     Ok(())
 }
 
-pub fn string_beads_to_indexed_beads<W>(buffer: &[u8], writer: &mut W) where W: io::Write {
-    let string_beads = TypedBeads::new(buffer, &BeadTypeSet::new(&[BeadType::Utf8]));
+pub fn string_beads_to_indexed_beads<W>(buffer: &[u8], writer: &mut W) -> Result<(), &'static str> where W: io::Write {
+    let string_beads = TypedBeads::new(buffer, &BeadTypeSet::new(&[BeadType::Utf8]))?;
     let mut builder = IndexedBeadsBuilder::new();
     for sb in string_beads.iter() {
         builder.push(sb.to_bytes());
     }
     builder.encode(writer);
+    Ok(())
 }
 
 pub fn u128_from_slice(slice: &[u8]) -> u128 {
@@ -145,8 +146,8 @@ pub fn u128_from_slice(slice: &[u8]) -> u128 {
     u128::from_le_bytes(tmp) as u128
 }
 
-pub fn beads_to_dedup_beads<W>(buffer: &'_[u8], types: &BeadTypeSet, writer: &mut W) where W: io::Write {
-    let beads = TypedBeads::new(buffer, types);
+pub fn beads_to_dedup_beads<W>(buffer: &'_[u8], types: &BeadTypeSet, writer: &mut W) -> Result<(), &'static str> where W: io::Write {
+    let beads = TypedBeads::new(buffer, types)?;
     let mut lookup = HashMap::new();
     let mut value_builder = IndexedBeadsBuilder::new();
     let mut index_builder = FixedSizeBeadsIncrementalUintBuilder::new();
@@ -170,6 +171,7 @@ pub fn beads_to_dedup_beads<W>(buffer: &'_[u8], types: &BeadTypeSet, writer: &mu
     builders.push(value_box);
 
     IndexedBeadsBuilder::encode_from_beads_builders(writer, builders);
+    Ok(())
 }
 
 #[cfg(test)]
@@ -192,12 +194,12 @@ mod tests {
         let mut out: Vec<u8> = vec![];
         csv_to_indexed_string_beads("a,b", &mut out).ok().unwrap();
         assert_eq!(out, vec![16, 3, 6, 1, 1, 97, 1, 1, 98]);
-        let ib = IndexedBeads::new(out.as_slice());
+        let ib = IndexedBeads::new(out.as_slice()).ok().unwrap();
         assert_eq!(ib.len(), 2);
-        let b1 = TypedBeads::new(ib[0].as_ref(), &BeadTypeSet::new(&[BeadType::Utf8]));
+        let b1 = TypedBeads::new(ib[0].as_ref(), &BeadTypeSet::new(&[BeadType::Utf8])).ok().unwrap();
         let c1: Vec<String> = b1.iter().map(|b| String::try_from(b).unwrap()).collect();
         assert_eq!(c1, vec!["a"]);
-        let b1 = TypedBeads::new(ib[1].as_ref(), &BeadTypeSet::new(&[BeadType::Utf8]));
+        let b1 = TypedBeads::new(ib[1].as_ref(), &BeadTypeSet::new(&[BeadType::Utf8])).ok().unwrap();
         let c1: Vec<String> = b1.iter().map(|b| String::try_from(b).unwrap()).collect();
         assert_eq!(c1, vec!["b"]);
     }
@@ -207,12 +209,12 @@ mod tests {
         let mut out: Vec<u8> = vec![];
         csv_to_indexed_string_beads("a,b\n1,2", &mut out).ok().unwrap();
         assert_eq!(out, vec![16, 5, 10, 2, 1, 97, 1, 49, 2, 1, 98, 1, 50]);
-        let ib = IndexedBeads::new(out.as_slice());
+        let ib = IndexedBeads::new(out.as_slice()).ok().unwrap();
         assert_eq!(ib.len(), 2);
-        let b1 = TypedBeads::new(ib[0].as_ref(), &BeadTypeSet::new(&[BeadType::Utf8]));
+        let b1 = TypedBeads::new(ib[0].as_ref(), &BeadTypeSet::new(&[BeadType::Utf8])).ok().unwrap();
         let c1: Vec<String> = b1.iter().map(|b| String::try_from(b).unwrap()).collect();
         assert_eq!(c1, vec!["a", "1"]);
-        let b1 = TypedBeads::new(ib[1].as_ref(), &BeadTypeSet::new(&[BeadType::Utf8]));
+        let b1 = TypedBeads::new(ib[1].as_ref(), &BeadTypeSet::new(&[BeadType::Utf8])).ok().unwrap();
         let c1: Vec<String> = b1.iter().map(|b| String::try_from(b).unwrap()).collect();
         assert_eq!(c1, vec!["b", "2"]);
     }
@@ -222,16 +224,16 @@ mod tests {
         let mut out: Vec<u8> = vec![];
         csv_to_indexed_string_beads("a,\"ccc\"\"b,\"\"cccc\",e", &mut out).ok().unwrap();
         assert_eq!(out, vec![24, 3, 16, 19, 1, 1, 97, 1, 11, 99, 99, 99, 34, 98, 44, 34, 99, 99, 99, 99, 1, 1, 101]);
-        let ib = IndexedBeads::new(out.as_slice());
+        let ib = IndexedBeads::new(out.as_slice()).ok().unwrap();
         assert_eq!(ib.len(), 3);
-        let b = TypedBeads::new(ib[0].as_ref(), &BeadTypeSet::new(&[BeadType::Utf8]));
+        let b = TypedBeads::new(ib[0].as_ref(), &BeadTypeSet::new(&[BeadType::Utf8])).ok().unwrap();
         let c: Vec<String> = b.iter().map(|b| String::try_from(b).unwrap()).collect();
         assert_eq!(c, vec!["a"]);
-        let b = TypedBeads::new(ib[1].as_ref(), &BeadTypeSet::new(&[BeadType::Utf8]));
+        let b = TypedBeads::new(ib[1].as_ref(), &BeadTypeSet::new(&[BeadType::Utf8])).ok().unwrap();
         let c: Vec<String> = b.iter().map(|b| String::try_from(b).unwrap()).collect();
         assert_eq!(c, vec!["ccc\"b,\"cccc"]);
 
-        let b = TypedBeads::new(ib[2].as_ref(), &BeadTypeSet::new(&[BeadType::Utf8]));
+        let b = TypedBeads::new(ib[2].as_ref(), &BeadTypeSet::new(&[BeadType::Utf8])).ok().unwrap();
         let c: Vec<String> = b.iter().map(|b| String::try_from(b).unwrap()).collect();
         assert_eq!(c, vec!["e"]);
     }
@@ -252,12 +254,12 @@ mod tests {
 
         assert_eq!(out, vec![4, 1, 0, 0, 0, 255, 255, 255, 255, 0, 0, 0, 0, 108, 109, 23, 0]);
 
-        let beads = TypedBeads::new(out.as_slice(), &BeadTypeSet::new(&[BeadType::I32]));
+        let beads = TypedBeads::new(out.as_slice(), &BeadTypeSet::new(&[BeadType::I32])).ok().unwrap();
         let sym_b = beads.symmetric().ok().unwrap();
-        assert_eq!(sym_b.get(0).to_int(), 1);
-        assert_eq!(sym_b.get(1).to_int(), -1);
-        assert_eq!(sym_b.get(2).to_int(), 0);
-        assert_eq!(sym_b.get(3).to_int(), 1_535_340);
+        assert_eq!(sym_b.get(0).unwrap().to_int(), 1);
+        assert_eq!(sym_b.get(1).unwrap().to_int(), -1);
+        assert_eq!(sym_b.get(2).unwrap().to_int(), 0);
+        assert_eq!(sym_b.get(3).unwrap().to_int(), 1_535_340);
     }
 
     #[test]
@@ -276,12 +278,12 @@ mod tests {
 
         assert_eq!(out, vec![4, 1, 100, 0, 255]);
 
-        let beads = TypedBeads::new(out.as_slice(), &BeadTypeSet::new(&[BeadType::U8]));
+        let beads = TypedBeads::new(out.as_slice(), &BeadTypeSet::new(&[BeadType::U8])).ok().unwrap();
         let sym_b = beads.symmetric().ok().unwrap();
-        assert_eq!(sym_b.get(0).to_int(), 1);
-        assert_eq!(sym_b.get(1).to_int(), 100);
-        assert_eq!(sym_b.get(2).to_int(), 0);
-        assert_eq!(sym_b.get(3).to_int(), 255);
+        assert_eq!(sym_b.get(0).unwrap().to_int(), 1);
+        assert_eq!(sym_b.get(1).unwrap().to_int(), 100);
+        assert_eq!(sym_b.get(2).unwrap().to_int(), 0);
+        assert_eq!(sym_b.get(3).unwrap().to_int(), 255);
     }
 
     #[test]
@@ -300,12 +302,12 @@ mod tests {
 
         assert_eq!(out, vec![4, 15, 1, 100, 0, 231]);
 
-        let beads = TypedBeads::new(out.as_slice(), &BeadTypeSet::new(&[BeadType::U8, BeadType::I8]));
+        let beads = TypedBeads::new(out.as_slice(), &BeadTypeSet::new(&[BeadType::U8, BeadType::I8])).ok().unwrap();
         let sym_b = beads.symmetric().ok().unwrap();
-        assert_eq!(sym_b.get(0).to_int(), 1);
-        assert_eq!(sym_b.get(1).to_int(), 100);
-        assert_eq!(sym_b.get(2).to_int(), 0);
-        assert_eq!(sym_b.get(3).to_int(), -25);
+        assert_eq!(sym_b.get(0).unwrap().to_int(), 1);
+        assert_eq!(sym_b.get(1).unwrap().to_int(), 100);
+        assert_eq!(sym_b.get(2).unwrap().to_int(), 0);
+        assert_eq!(sym_b.get(3).unwrap().to_int(), -25);
     }
 
     #[test]
@@ -325,7 +327,7 @@ mod tests {
 
         assert_eq!(out, vec![5, 7, 1, 100, 0]);
 
-        let beads = TypedBeads::new(out.as_slice(), &BeadTypeSet::new(&[BeadType::U8, BeadType::None]));
+        let beads = TypedBeads::new(out.as_slice(), &BeadTypeSet::new(&[BeadType::U8, BeadType::None])).ok().unwrap();
         assert_eq!(beads.is_symmetrical(), false);
         let values = [1, 100, 0];
         for (i, b) in beads.iter().enumerate() {
@@ -353,12 +355,12 @@ mod tests {
 
         assert_eq!(out, vec![4, 8, 1, 100, 0, 231]);
 
-        let beads = TypedBeads::new(out.as_slice(), &BeadTypeSet::new(&[BeadType::U8, BeadType::I8]));
+        let beads = TypedBeads::new(out.as_slice(), &BeadTypeSet::new(&[BeadType::U8, BeadType::I8])).ok().unwrap();
         let sym_b = beads.symmetric().ok().unwrap();
-        assert_eq!(sym_b.get(0).to_int(), 1);
-        assert_eq!(sym_b.get(1).to_int(), 100);
-        assert_eq!(sym_b.get(2).to_int(), 0);
-        assert_eq!(sym_b.get(3).to_int(), -25);
+        assert_eq!(sym_b.get(0).unwrap().to_int(), 1);
+        assert_eq!(sym_b.get(1).unwrap().to_int(), 100);
+        assert_eq!(sym_b.get(2).unwrap().to_int(), 0);
+        assert_eq!(sym_b.get(3).unwrap().to_int(), -25);
     }
 
     #[test]
@@ -377,12 +379,12 @@ mod tests {
 
         assert_eq!(out, vec![4, 205, 204, 140, 63, 0, 0, 201, 66, 0, 0, 0, 0, 0, 0, 200, 193]);
 
-        let beads = TypedBeads::new(out.as_slice(), &BeadTypeSet::new(&[BeadType::F32]));
+        let beads = TypedBeads::new(out.as_slice(), &BeadTypeSet::new(&[BeadType::F32])).ok().unwrap();
         let sym_b = beads.symmetric().ok().unwrap();
-        assert_eq!(sym_b.get(0).to_float(), 1.100000023841858);
-        assert_eq!(sym_b.get(1).to_float(), 100.5);
-        assert_eq!(sym_b.get(2).to_float(), 0.0);
-        assert_eq!(sym_b.get(3).to_float(), -25.0);
+        assert_eq!(sym_b.get(0).unwrap().to_float(), 1.100000023841858);
+        assert_eq!(sym_b.get(1).unwrap().to_float(), 100.5);
+        assert_eq!(sym_b.get(2).unwrap().to_float(), 0.0);
+        assert_eq!(sym_b.get(3).unwrap().to_float(), -25.0);
     }
 
     #[test]
@@ -398,11 +400,11 @@ mod tests {
         builder.encode(&mut buffer);
 
         let mut out: Vec<u8> = vec![];
-        string_beads_to_indexed_beads(&buffer, &mut out);
+        string_beads_to_indexed_beads(&buffer, &mut out).ok().unwrap();
 
         assert_eq!(out, vec![40, 3, 8, 11, 16, 20, 49, 46, 49, 49, 48, 48, 46, 53, 48, 46, 48, 45, 50, 53, 46, 48, 240, 159, 164, 170]);
 
-        let beads = IndexedBeads::new(out.as_slice());
+        let beads = IndexedBeads::new(out.as_slice()).ok().unwrap();
         assert_eq!(beads.len(), 5);
         assert_eq!(std::str::from_utf8(&beads[0]).unwrap(), "1.1");
         assert_eq!(std::str::from_utf8(&beads[1]).unwrap(), "100.5");
@@ -435,7 +437,7 @@ mod tests {
         builder.encode(&mut buffer);
 
         let mut out: Vec<u8> = vec![];
-        beads_to_dedup_beads(&buffer, &BeadTypeSet::new(&[BeadType::Utf8]), &mut out);
+        beads_to_dedup_beads(&buffer, &BeadTypeSet::new(&[BeadType::Utf8]), &mut out).ok().unwrap();
 
         assert_eq!(out, vec![
             16, 10, 31,
@@ -444,10 +446,10 @@ mod tests {
             77, 97, 120, 77, 97, 120, 105, 109, 65, 108, 101, 120, 240, 159, 164, 170
         ]);
 
-        let beads = IndexedBeads::new(out.as_slice());
+        let beads = IndexedBeads::new(out.as_slice()).ok().unwrap();
         assert_eq!(beads.len(), 2);
-        let index = FixedSizeBeads::new(&beads[0]);
-        let values = IndexedBeads::new(&beads[1]);
+        let index = FixedSizeBeads::new(&beads[0]).ok().unwrap();
+        let values = IndexedBeads::new(&beads[1]).ok().unwrap();
         assert_eq!(index.len(), 9);
         assert_eq!(values.len(), 4);
         assert_eq!(&values[u128_from_slice(&index[0]) as usize], "Max".as_bytes());
