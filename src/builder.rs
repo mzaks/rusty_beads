@@ -342,7 +342,7 @@ impl BeadsBuilder for IndexedBeadsBuilder<'_> {
 
     fn len(&self) -> usize {
         let bytes_per_index_entry = (8 - self.cursor.leading_zeros() / 8) as usize;
-        let count_length = (self.buffers.len() + 3).vlq_byte_size();
+        let count_length = (self.buffers.len() << 3).vlq_byte_size();
         let index_bytes = ((self.indexes.len() / 8) * bytes_per_index_entry) as usize;
         let values_bytes: usize = self.buffers.iter().map(|b| b.len()).sum();
         count_length + index_bytes + values_bytes
