@@ -261,8 +261,7 @@ impl BeadsBuilder for TypedBeadsBuilder {
     }
 
     fn len(&self) -> usize {
-        let leading_zeros = self.count.leading_zeros();
-        let count_length = max(1, (9 - (leading_zeros / 7)) as usize);
+        let count_length = self.count.vlq_byte_size();
         let buffer_length = max(self.data_pointer, self.flag_pointer+1) as usize;
         count_length + buffer_length
     }
