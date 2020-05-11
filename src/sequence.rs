@@ -163,9 +163,9 @@ impl<'a> IndexedBeads<'a> {
 
     pub fn len(&self) -> usize { self.count }
 
-    pub fn get(&'a self, index: usize) -> Result<&'a[u8], &'static str> {
+    pub fn get(&'a self, index: usize) -> Result<&'a[u8], String> {
         if index >= self.count {
-            return Err("Bad index")
+            return Err(format!("Bad index: {} where count is: {}", index, self.count))
         }
 
         fn position(b: &[u8], index: usize, bytes_per_index_entry: usize) -> Result<usize, &'static str> {
@@ -187,7 +187,7 @@ impl<'a> IndexedBeads<'a> {
         let end  = position(self.index_buffer, index, self.bytes_per_index_entry)?;
 
         if self.value_buffer.len() < end {
-            return Err("Bad index")
+            return Err(format!("Bad buffer offset: {}..{}, where buffer length is: {}", start, end, self.value_buffer.len()))
         }
 
         Ok(&self.value_buffer[start..end])
@@ -274,13 +274,13 @@ impl <'a> DedupBeads<'a> {
         }
     }
 
-    pub fn len(&self) -> Result<usize, &'static str> {
+    pub fn len(&self) -> Result<usize, String> {
         let root = IndexedBeads::new(self.buffer)?;
         let index_beads = FixedSizeBeads::new(root.get(0)?)?;
         Ok(index_beads.len())
     }
 
-    pub fn get(&self, index: usize) -> Result<Vec<u8>, &'static str> {
+    pub fn get(&self, index: usize) -> Result<Vec<u8>, String> {
         let root = IndexedBeads::new(self.buffer)?;
         let index_beads = FixedSizeBeads::new(root.get(0)?)?;
         let values = IndexedBeads::new(root.get(1)?)?;
