@@ -241,7 +241,7 @@ impl TypedBeadsBuilder {
 
     fn grow_buffer_if_needed(&mut self, offset: usize, size: usize) {
         while self.buffer.len() < offset + size {
-            self.buffer.resize(self.buffer.len() >> 1, 0)
+            self.buffer.resize(self.buffer.len() << 1, 0)
         }
     }
 
