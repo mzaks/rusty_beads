@@ -1,7 +1,7 @@
 use crate::vlq::{add_as_vlq, add_as_vlqz};
 use half::f16;
 
-#[derive(PartialEq, Hash, Clone, Copy)]
+#[derive(PartialEq, Hash, Clone, Copy, Debug)]
 pub enum BeadType {
     None = 1,
     TrueFlag = 1 << 1,
@@ -519,7 +519,75 @@ impl BeadTypeSet {
     pub fn bytes(&self) -> [u8;4] {
         self.value.to_le_bytes()
     }
+
+    pub fn bool() -> BeadTypeSet {
+        BeadTypeSet::new(&[BeadType::TrueFlag, BeadType::FalseFlag])
+    }
+
+    pub fn f16_or_f32() -> BeadTypeSet {
+        BeadTypeSet::new(&[BeadType::F16, BeadType::F32])
+    }
+
+    pub fn float() -> BeadTypeSet {
+        BeadTypeSet::new(&[BeadType::F16, BeadType::F32, BeadType::F64])
+    }
 }
+
+macro_rules! bead_type_set_factory {
+    ( $x:ident, $y:ident ) => (
+impl BeadTypeSet {
+    pub fn $x() -> BeadTypeSet {
+        BeadTypeSet::new(&[BeadType::$y])
+    }
+}
+)}
+
+macro_rules! bead_type_set_optional_factory {
+    ( $x:ident, $y:ident ) => (
+impl BeadTypeSet {
+    pub fn $x() -> BeadTypeSet {
+        BeadTypeSet::new(&[BeadType::$y, BeadType::None])
+    }
+}
+    )
+}
+
+bead_type_set_factory!(u8, U8);
+bead_type_set_optional_factory!(optional_u8, U8);
+bead_type_set_factory!(u16, U16);
+bead_type_set_optional_factory!(optional_u16, U16);
+bead_type_set_factory!(u32, U32);
+bead_type_set_optional_factory!(optional_u32, U32);
+bead_type_set_factory!(u64, U64);
+bead_type_set_optional_factory!(optional_u64, U64);
+bead_type_set_factory!(u128, U128);
+bead_type_set_optional_factory!(optional_u128, U128);
+
+bead_type_set_factory!(i8, I8);
+bead_type_set_optional_factory!(optional_i8, I8);
+bead_type_set_factory!(i16, I16);
+bead_type_set_optional_factory!(optional_i16, I16);
+bead_type_set_factory!(i32, I32);
+bead_type_set_optional_factory!(optional_i32, I32);
+bead_type_set_factory!(i64, I64);
+bead_type_set_optional_factory!(optional_i64, I64);
+bead_type_set_factory!(i128, I128);
+bead_type_set_optional_factory!(optional_i128, I128);
+
+bead_type_set_factory!(f16, F16);
+bead_type_set_optional_factory!(optional_f16, F16);
+bead_type_set_factory!(f32, F32);
+bead_type_set_optional_factory!(optional_f32, F32);
+bead_type_set_factory!(f64, F64);
+bead_type_set_optional_factory!(optional_f64, F64);
+
+bead_type_set_factory!(utf8, Utf8);
+bead_type_set_optional_factory!(optional_utf8, Utf8);
+
+bead_type_set_factory!(vlq, Vlq);
+bead_type_set_optional_factory!(optional_vlq, Vlq);
+bead_type_set_factory!(vlqz, VlqZ);
+bead_type_set_optional_factory!(optional_vlqz, VlqZ);
 
 impl From<u32> for BeadTypeSet {
     fn from(value: u32) -> Self {

@@ -4,7 +4,14 @@ use crate::bead_type::{BeadTypeSet, BeadType};
 use crate::sequence::TypedBeads;
 use std::collections::{HashMap};
 
-pub fn csv_to_indexed_string_beads<W>(csv: &str, writer: &mut W) -> Result<(), &'static str> where W: io::Write {
+#[derive(PartialEq, Hash, Clone, Copy)]
+pub enum CsvFirstLine {
+    Include,
+    Exclude,
+    // IncludeAsSeparateColumn
+}
+
+pub fn csv_to_indexed_string_beads<W>(csv: &str, first_line_rule: CsvFirstLine, writer: &mut W) -> Result<(), &'static str> where W: io::Write {
     let csv = csv.as_bytes();
     let mut offset = 0;
     let quote = "\"".as_bytes()[0];
@@ -15,13 +22,16 @@ pub fn csv_to_indexed_string_beads<W>(csv: &str, writer: &mut W) -> Result<(), &
     let mut bytes: Vec<u8> = vec![];
     let mut column_index = 0;
     let mut builders: Vec<Box<TypedBeadsBuilder>> = vec![];
+    let mut first_line = true;
 
-    fn add_bytes(builders: &mut Vec<Box<TypedBeadsBuilder>>, bytes: &mut Vec<u8>, column_index: &mut usize) -> Result<(), &'static str> {
+    fn add_bytes(builders: &mut Vec<Box<TypedBeadsBuilder>>, bytes: &mut Vec<u8>, column_index: &mut usize, first_line: bool, first_line_rule: &CsvFirstLine) -> Result<(), &'static str> {
         if builders.len() <= *column_index {
             builders.push(Box::new(TypedBeadsBuilder::new(&BeadTypeSet::new(&[BeadType::Utf8]))?));
         }
         let builder = &mut builders[*column_index];
-        builder.push_string(std::str::from_utf8(&bytes).unwrap());
+        if first_line == false || *first_line_rule == CsvFirstLine::Include {
+            builder.push_string(std::str::from_utf8(&bytes).unwrap());
+        }
         bytes.clear();
         Ok(())
     }
@@ -43,22 +53,24 @@ pub fn csv_to_indexed_string_beads<W>(csv: &str, writer: &mut W) -> Result<(), &
             }
         } else if char == separator && is_in_double_quotes == false {
 
-            add_bytes(&mut builders, &mut bytes, &mut column_index)?;
+            add_bytes(&mut builders, &mut bytes, &mut column_index, first_line, &first_line_rule)?;
 
             offset += 1;
             column_index += 1;
         } else if char == n && is_in_double_quotes == false {
 
-            add_bytes(&mut builders, &mut bytes, &mut column_index)?;
+            add_bytes(&mut builders, &mut bytes, &mut column_index, first_line, &first_line_rule)?;
 
             offset += 1;
             column_index = 0;
+            first_line = false;
         } else if char == r && csv.len() > offset + 1 && csv[offset+1] == n && is_in_double_quotes == false {
 
-            add_bytes(&mut builders, &mut bytes, &mut column_index)?;
+            add_bytes(&mut builders, &mut bytes, &mut column_index, first_line, &first_line_rule)?;
 
             offset += 2;
             column_index = 0;
+            first_line = false;
         } else {
             bytes.push(char);
             offset += 1;
@@ -66,7 +78,7 @@ pub fn csv_to_indexed_string_beads<W>(csv: &str, writer: &mut W) -> Result<(), &
     }
 
     if bytes.is_empty() == false {
-        add_bytes(&mut builders, &mut bytes, &mut column_index)?;
+        add_bytes(&mut builders, &mut bytes, &mut column_index, first_line, &first_line_rule)?;
     }
 
     let mut boxed_builders: Vec<Box<dyn BeadsBuilder>> = vec![];
@@ -176,7 +188,7 @@ pub fn beads_to_dedup_beads<W>(buffer: &'_[u8], types: &BeadTypeSet, writer: &mu
 
 #[cfg(test)]
 mod tests {
-    use crate::converters::{csv_to_indexed_string_beads, string_beads_to_int_beads, string_beads_to_double_beads, string_beads_to_indexed_beads, u128_from_slice, beads_to_dedup_beads};
+    use crate::converters::{csv_to_indexed_string_beads, string_beads_to_int_beads, string_beads_to_double_beads, string_beads_to_indexed_beads, u128_from_slice, beads_to_dedup_beads, CsvFirstLine};
     use crate::sequence::{IndexedBeads, TypedBeads, FixedSizeBeads};
     use crate::bead_type::{BeadTypeSet, BeadType};
     use std::convert::TryFrom;
@@ -185,14 +197,14 @@ mod tests {
     #[test]
     fn empty_string() {
         let mut out: Vec<u8> = vec![];
-        csv_to_indexed_string_beads("", &mut out).ok().unwrap();
+        csv_to_indexed_string_beads("", CsvFirstLine::Include, &mut out).ok().unwrap();
         assert_eq!(out, vec![])
     }
 
     #[test]
     fn one_row() {
         let mut out: Vec<u8> = vec![];
-        csv_to_indexed_string_beads("a,b", &mut out).ok().unwrap();
+        csv_to_indexed_string_beads("a,b", CsvFirstLine::Include, &mut out).ok().unwrap();
         assert_eq!(out, vec![16, 3, 6, 1, 1, 97, 1, 1, 98]);
         let ib = IndexedBeads::new(out.as_slice()).ok().unwrap();
         assert_eq!(ib.len(), 2);
@@ -207,7 +219,7 @@ mod tests {
     #[test]
     fn two_row() {
         let mut out: Vec<u8> = vec![];
-        csv_to_indexed_string_beads("a,b\n1,2", &mut out).ok().unwrap();
+        csv_to_indexed_string_beads("a,b\n1,2", CsvFirstLine::Include, &mut out).ok().unwrap();
         assert_eq!(out, vec![16, 5, 10, 2, 1, 97, 1, 49, 2, 1, 98, 1, 50]);
         let ib = IndexedBeads::new(out.as_slice()).ok().unwrap();
         assert_eq!(ib.len(), 2);
@@ -222,7 +234,7 @@ mod tests {
     #[test]
     fn one_row_with_quotes() {
         let mut out: Vec<u8> = vec![];
-        csv_to_indexed_string_beads("a,\"ccc\"\"b,\"\"cccc\",e", &mut out).ok().unwrap();
+        csv_to_indexed_string_beads("a,\"ccc\"\"b,\"\"cccc\",e", CsvFirstLine::Include, &mut out).ok().unwrap();
         assert_eq!(out, vec![24, 3, 16, 19, 1, 1, 97, 1, 11, 99, 99, 99, 34, 98, 44, 34, 99, 99, 99, 99, 1, 1, 101]);
         let ib = IndexedBeads::new(out.as_slice()).ok().unwrap();
         assert_eq!(ib.len(), 3);

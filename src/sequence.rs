@@ -171,7 +171,7 @@ impl<'a> IndexedBeads<'a> {
         fn position(b: &[u8], index: usize, bytes_per_index_entry: usize) -> Result<usize, &'static str> {
             let mut position = 0;
             for i in 0..bytes_per_index_entry {
-                let p = b.get(index*bytes_per_index_entry + i).ok_or("Bad index")?;
+                let p = b.get(index*bytes_per_index_entry + i).ok_or("Bad index!")?;
                 let part = *p as usize;
                 position |= part << (i * 8)
             }
@@ -241,12 +241,12 @@ impl <'a> FixedSizeBeads<'a> {
         self.buffer.len() / self.size
     }
 
-    pub fn get(&self, index: usize) -> Result<&'a[u8], &'static str> {
+    pub fn get(&self, index: usize) -> Result<&'a[u8], String> {
         let start = index * self.size;
         let end = (index + 1) * self.size;
 
         if self.buffer.len() < end {
-            return Err("Bad index")
+            return Err(format!("Bad index {} reading at: {}..{} in buffer of length: {}", index, start, end, self.buffer.len()))
         }
         Ok(&self.buffer[start..end])
     }

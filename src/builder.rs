@@ -3,14 +3,15 @@ use crate::bead_type::{BeadType, BeadTypeSet};
 use std::cmp::max;
 use crate::vlq::{add_as_vlq, VlqByteSize};
 use std::io;
-use std::cell::{RefCell, RefMut};
-use std::borrow::{BorrowMut};
+use std::cell::{RefCell};
+use crate::csv::{CsvColumnBuilder};
 
 pub trait BeadsBuilder {
-    fn encode<'a>(&self, writer: RefMut<dyn io::Write + 'a>);
+    fn encode<'a>(&self, writer: &RefCell<dyn io::Write + 'a>);
     fn len(&self) -> usize;
 }
 
+#[derive(Debug)]
 pub struct TypedBeadsBuilder {
     buffer: Vec<u8>,
     count: usize,
@@ -170,7 +171,7 @@ impl TypedBeadsBuilder {
 
     pub fn push_double_with_accuracy(&mut self, value: f64, accuracy: f64) -> bool {
         let start = max(self.flag_pointer+1, self.data_pointer);
-        self.grow_buffer_if_needed(start, 8);
+        self.grow_buffer_if_needed(start, 8+1);
         for t in BeadType::cases_for_double() {
             let mut type_index = 255u8;
             if let Some(_type_index) = self.type_index.get(&t) {
@@ -194,7 +195,7 @@ impl TypedBeadsBuilder {
     }
 
     pub fn encode<W>(&self, writer: &mut W) where W: io::Write {
-        <dyn BeadsBuilder>::encode(self, RefCell::new(writer).borrow_mut());
+        <dyn BeadsBuilder>::encode(self, &RefCell::new(writer));
     }
 
     pub fn encode_with_types<W>(&self, writer: &mut W) where W: io::Write {
@@ -251,8 +252,59 @@ impl TypedBeadsBuilder {
     }
 }
 
+macro_rules! typed_beads_builder_factory {
+    ( $x:ident ) => (
+impl TypedBeadsBuilder {
+    pub fn $x() -> TypedBeadsBuilder {
+        TypedBeadsBuilder::new(&BeadTypeSet::$x()).expect("")
+    }
+}
+)}
+
+typed_beads_builder_factory!(i8);
+typed_beads_builder_factory!(optional_i8);
+typed_beads_builder_factory!(i16);
+typed_beads_builder_factory!(optional_i16);
+typed_beads_builder_factory!(i32);
+typed_beads_builder_factory!(optional_i32);
+typed_beads_builder_factory!(i64);
+typed_beads_builder_factory!(optional_i64);
+typed_beads_builder_factory!(i128);
+typed_beads_builder_factory!(optional_i128);
+
+typed_beads_builder_factory!(u8);
+typed_beads_builder_factory!(optional_u8);
+typed_beads_builder_factory!(u16);
+typed_beads_builder_factory!(optional_u16);
+typed_beads_builder_factory!(u32);
+typed_beads_builder_factory!(optional_u32);
+typed_beads_builder_factory!(u64);
+typed_beads_builder_factory!(optional_u64);
+typed_beads_builder_factory!(u128);
+typed_beads_builder_factory!(optional_u128);
+
+typed_beads_builder_factory!(f16);
+typed_beads_builder_factory!(optional_f16);
+typed_beads_builder_factory!(f32);
+typed_beads_builder_factory!(optional_f32);
+typed_beads_builder_factory!(f64);
+typed_beads_builder_factory!(optional_f64);
+typed_beads_builder_factory!(f16_or_f32);
+typed_beads_builder_factory!(float);
+
+typed_beads_builder_factory!(utf8);
+typed_beads_builder_factory!(optional_utf8);
+
+typed_beads_builder_factory!(vlq);
+typed_beads_builder_factory!(optional_vlq);
+
+typed_beads_builder_factory!(vlqz);
+typed_beads_builder_factory!(optional_vlqz);
+
+typed_beads_builder_factory!(bool);
+
 impl BeadsBuilder for TypedBeadsBuilder {
-    fn encode(&self, mut writer: RefMut<dyn io::Write + '_>) {
+    fn encode(&self, writer: &RefCell<dyn io::Write + '_>) {
         let mut tmp = [0; 10];
         let count_length = add_as_vlq(tmp.as_mut(), self.count as u128);
         writer.borrow_mut().write_all(tmp[..count_length].as_ref()).expect("could not write");
@@ -267,9 +319,11 @@ impl BeadsBuilder for TypedBeadsBuilder {
     }
 }
 
+#[derive(Debug)]
 pub struct IndexedBeadsBuilder <'a> {
     indexes: Vec<u8>,
     buffers: Vec<&'a[u8]>,
+    owned_data: Vec<Vec<u8>>,
     cursor: u64
 }
 
@@ -278,6 +332,7 @@ impl <'a> IndexedBeadsBuilder <'a>{
         IndexedBeadsBuilder {
             indexes: vec![],
             buffers: vec![],
+            owned_data: vec![],
             cursor: 0
         }
     }
@@ -290,8 +345,18 @@ impl <'a> IndexedBeadsBuilder <'a>{
         self.indexes.append(size_as_buf.as_mut());
     }
 
+    pub fn push_and_own(&'a mut self, buffer: Vec<u8>) {
+        let len = buffer.len() as u64;
+        self.owned_data.push(buffer);
+        self.buffers.push(self.owned_data.last().expect("").as_slice());
+        self.cursor += len;
+        let bytes = self.cursor.to_le_bytes();
+        let mut size_as_buf: Vec<u8> = bytes.to_vec();
+        self.indexes.append(size_as_buf.as_mut());
+    }
+
     pub fn encode<W>(&self, writer: &mut W) where W: io::Write {
-        <dyn BeadsBuilder>::encode(self, RefCell::new(writer).borrow_mut());
+        <dyn BeadsBuilder>::encode(self, &RefCell::new(writer));
     }
 
     pub fn encode_from_beads_builders<W>(writer: &mut W, builders: Vec<Box<dyn BeadsBuilder + '_>>) where W: io::Write {
@@ -314,13 +379,59 @@ impl <'a> IndexedBeadsBuilder <'a>{
         }
         let writer_cell = RefCell::new(writer);
         for b in builders.iter() {
-            b.encode(writer_cell.borrow_mut());
+            b.encode(&writer_cell);
+        }
+    }
+
+    pub(crate) fn encode_from_dedup_builder<W>(writer: &mut W, index_builder: &FixedSizeBeadsIncrementalUintBuilder, value_builder: &IndexedBeadsBuilder) where W: io::Write {
+        let cursor: usize = index_builder.len() + value_builder.len();
+        let bytes_per_index_entry = (8 - cursor.leading_zeros() / 8) as usize;
+
+        let header = ((2u128) << 3) | ((bytes_per_index_entry - 1) as u128);
+
+        let mut tmp = [0; 2];
+        let count_length = add_as_vlq(tmp.as_mut(), header);
+        writer.write_all(tmp[..count_length].as_ref()).expect("could not write");
+        let mut cursor = 0;
+        cursor += index_builder.len();
+        let bytes = cursor.to_le_bytes();
+        writer.write_all(&bytes[..bytes_per_index_entry]).expect("could not write");
+
+        cursor += value_builder.len();
+        let bytes = cursor.to_le_bytes();
+        writer.write_all(&bytes[..bytes_per_index_entry]).expect("could not write");
+
+        index_builder.encode(writer);
+        value_builder.encode(writer);
+    }
+
+    pub(crate) fn encode_from_csv<W>(writer: &mut W, builders: Vec<RefCell<CsvColumnBuilder>>) where W: io::Write {
+        if builders.is_empty() {
+            return
+        }
+        let cursor: usize = builders.iter().map(|b|b.borrow().len()).sum();
+        let bytes_per_index_entry = (8 - cursor.leading_zeros() / 8) as usize;
+
+        let header = ((builders.len() as u128) << 3) | ((bytes_per_index_entry - 1) as u128);
+
+        let mut tmp = [0; 19];
+        let count_length = add_as_vlq(tmp.as_mut(), header);
+        writer.write_all(tmp[..count_length].as_ref()).expect("could not write");
+        let mut cursor = 0;
+        for b in builders.iter() {
+            cursor += b.borrow().len();
+            let bytes = cursor.to_le_bytes();
+            writer.write_all(&bytes[..bytes_per_index_entry]).expect("could not write");
+        }
+        let writer_cell = RefCell::new(writer);
+        for b in builders.iter() {
+            b.borrow().encode(&writer_cell);
         }
     }
 }
 
 impl BeadsBuilder for IndexedBeadsBuilder<'_> {
-    fn encode(&self, mut writer: RefMut<dyn io::Write + '_>) {
+    fn encode(&self, writer: &RefCell<dyn io::Write + '_>) {
         if self.cursor == 0 {
             return
         }
@@ -349,6 +460,66 @@ impl BeadsBuilder for IndexedBeadsBuilder<'_> {
     }
 }
 
+#[derive(Debug)]
+pub struct OwningIndexedBeadsBuilder {
+    indexes: Vec<u8>,
+    buffer: Vec<u8>,
+    cursor: u64,
+    len: usize
+}
+
+impl OwningIndexedBeadsBuilder {
+    pub fn new() -> OwningIndexedBeadsBuilder {
+        OwningIndexedBeadsBuilder {
+            indexes: vec![],
+            buffer: vec![],
+            cursor: 0,
+            len:0
+        }
+    }
+
+    pub fn push(&mut self, buffer: &[u8]) {
+        self.buffer.extend_from_slice(buffer);
+        self.cursor += buffer.len() as u64;
+        let bytes = self.cursor.to_le_bytes();
+        let mut size_as_buf: Vec<u8> = bytes.to_vec();
+        self.indexes.append(size_as_buf.as_mut());
+        self.len += 1;
+    }
+
+    pub fn encode<W>(&self, writer: &mut W) where W: io::Write {
+        <dyn BeadsBuilder>::encode(self, &RefCell::new(writer));
+    }
+}
+
+impl BeadsBuilder for OwningIndexedBeadsBuilder {
+    fn encode(&self, writer: &RefCell<dyn io::Write + '_>) {
+        if self.cursor == 0 {
+            return
+        }
+
+        let bytes_per_index_entry = (8 - self.cursor.leading_zeros() / 8) as usize;
+
+        let header = ((self.buffer.len() as u128) << 3) | ((bytes_per_index_entry - 1) as u128);
+
+        let mut tmp = [0; 19];
+        let count_length = add_as_vlq(tmp.as_mut(), header);
+        writer.borrow_mut().write_all(tmp[..count_length].as_ref()).expect("could not write");
+        for i in (0..self.indexes.len()).step_by(8) {
+            writer.borrow_mut().write_all(&self.indexes[i..i+bytes_per_index_entry]).expect("could not write");
+        }
+        writer.borrow_mut().write_all(self.buffer.as_ref()).expect("could not write");
+    }
+
+    fn len(&self) -> usize {
+        let bytes_per_index_entry = (8 - self.cursor.leading_zeros() / 8) as usize;
+        let count_length = (self.len << 3).vlq_byte_size();
+        let index_bytes = ((self.indexes.len() / 8) * bytes_per_index_entry) as usize;
+        let values_bytes: usize = self.buffer.len();
+        count_length + index_bytes + values_bytes
+    }
+}
+
 pub struct FixedSizeBeadsBuilder {
     size: usize,
     buffer: Vec<u8>
@@ -370,12 +541,12 @@ impl FixedSizeBeadsBuilder {
     }
 
     pub fn encode<W>(&self, writer: &mut W) where W: io::Write {
-        <dyn BeadsBuilder>::encode(self, RefCell::new(writer).borrow_mut());
+        <dyn BeadsBuilder>::encode(self, &RefCell::new(writer));
     }
 }
 
 impl BeadsBuilder for FixedSizeBeadsBuilder {
-    fn encode(&self, mut writer: RefMut<dyn io::Write + '_>) {
+    fn encode(&self, writer: &RefCell<dyn io::Write + '_>) {
         let mut tmp = [0; 10];
         let count_length = add_as_vlq(tmp.as_mut(), self.size as u128);
         writer.borrow_mut().write_all(tmp[..count_length].as_ref()).expect("could not write");
@@ -388,6 +559,7 @@ impl BeadsBuilder for FixedSizeBeadsBuilder {
     }
 }
 
+#[derive(Debug)]
 pub struct FixedSizeBeadsIncrementalUintBuilder {
     size: usize,
     buffer: Vec<u8>
@@ -408,18 +580,17 @@ impl FixedSizeBeadsIncrementalUintBuilder {
     }
 
     pub fn encode<W>(&self, writer: &mut W) where W: io::Write {
-        <dyn BeadsBuilder>::encode(self, RefCell::new(writer).borrow_mut());
+        <dyn BeadsBuilder>::encode(self, &RefCell::new(writer));
     }
 }
 
 impl BeadsBuilder for FixedSizeBeadsIncrementalUintBuilder {
-    fn encode(&self, mut writer: RefMut<dyn io::Write + '_>) {
+    fn encode(&self, writer: &RefCell<dyn io::Write + '_>) {
         let mut tmp = [0; 10];
-        let b_writer = writer.borrow_mut();
         let count_length = add_as_vlq(tmp.as_mut(), self.size as u128);
-        b_writer.write_all(tmp[..count_length].as_ref()).expect("could not write");
+        writer.borrow_mut().write_all(tmp[..count_length].as_ref()).expect("could not write");
         for i in (0..self.buffer.len()).step_by(16) {
-            b_writer.write_all(&self.buffer[i..i+self.size]).expect("could not write");
+            writer.borrow_mut().write_all(&self.buffer[i..i+self.size]).expect("could not write");
         }
     }
     fn len(&self) -> usize {
